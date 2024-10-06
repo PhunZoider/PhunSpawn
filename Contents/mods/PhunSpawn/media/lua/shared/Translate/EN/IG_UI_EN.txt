@@ -3,6 +3,7 @@ IGUI_EN = {
     IGUI_PhunSpawn_Confirm_Exit_Room = "Are you sure you are ready to leave for %1 in %2?\nYou will be unable to return to this location once you leave.",
     IGUI_PhunSpawn_Failed_To_Find_Free_Square = "Cannot find safe location to exit to",
     IGUI_PhunSpawn_Edit_Spawner = "Edit Spawner",
+    IGUI_PhunSpawn_Create_Spawner = "Create Spawner",
     IGUI_PhunSpawn_Confirm_Remove_Spawner = "Are you sure you want to delete this spawner?",
     IGUI_PhunSpawn_Setting_City = "City",
     IGUI_PhunSpawn_Setting_Title = "Title",

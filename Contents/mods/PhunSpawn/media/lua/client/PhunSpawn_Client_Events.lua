@@ -18,6 +18,7 @@ end)
 local function contextMenu(playerIndex, context, worldObjects, test)
 
     local player = getSpecificPlayer(playerIndex)
+    local md = player:getModData()
     local spawnerObj = nil
 
     for _, w in ipairs(worldObjects) do -- find object to interact with; code support for controllers
@@ -63,7 +64,7 @@ local function contextMenu(playerIndex, context, worldObjects, test)
 
     if isAdmin() then
 
-        context:addOption("Create Spawner", worldObjects, function()
+        context:addOption(getText("IGUI_PhunSpawn_Create_Spawner"), worldObjects, function()
             getCell():setDrag(PhunSpawnCursor:new("phunspawn_01_1", true, player), playerIndex)
         end, playerIndex)
 
@@ -74,9 +75,25 @@ local function contextMenu(playerIndex, context, worldObjects, test)
         end
     end
 
-    context:addOptionOnTop(getText("IGUI_PhunSpawn_Exit_Room"), player, function()
-        PhunSpawnSelectorUI.OnOpenPanel(player)
-    end)
+    if isAdmin() or (SandboxVars.PhunSpawn.RespawnHospitalRooms and md and md.RHR) then
+        context:addOptionOnTop(getText("IGUI_PhunSpawn_Exit_Room"), player, function()
+            PhunSpawnSelectorUI.OnOpenPanel(player)
+        end)
+    end
 end
 
 Events.OnFillWorldObjectContextMenu.Add(contextMenu)
+
+local function OnPlayerInit(player)
+    PhunSpawn:PlayerInit(player)
+    Events.OnPlayerUpdate.Remove(OnPlayerInit)
+end
+Events.OnPlayerUpdate.Remove(OnPlayerInit)
+
+if Events["OnHospitalRoomTeleport"] then
+    Events.OnHospitalRoomTeleport.Add(function(player)
+        player:setHaloNote("Your head feels fuzzy", 255, 255, 0, 300);
+        player:setHaloNote("Where are you?", 255, 255, 0, 300);
+        player:Say("Hello? Is anyone there?");
+    end)
+end

@@ -1,2 +1,9 @@
 VERSION = 1,
 
+option PhunSpawn.RespawnHospitalRooms
+{
+    type = boolean,
+    default = true,
+    page = PhunSpawn,
+    translation = PhunSpawn_RespawnHospitalRooms
+}
