@@ -1,0 +1,18 @@
+IGUI_EN = {
+    IGUI_PhunSpawn_Exit_Room = "Exit Room",
+    IGUI_PhunSpawn_Confirm_Exit_Room = "Are you sure you are ready to leave for %1 in %2?\nYou will be unable to return to this location once you leave.",
+    IGUI_PhunSpawn_Failed_To_Find_Free_Square = "Cannot find safe location to exit to",
+    IGUI_PhunSpawn_Edit_Spawner = "Edit Spawner",
+    IGUI_PhunSpawn_Confirm_Remove_Spawner = "Are you sure you want to delete this spawner?",
+    IGUI_PhunSpawn_Setting_City = "City",
+    IGUI_PhunSpawn_Setting_Title = "Title",
+    IGUI_PhunSpawn_Setting_Mod = "Mod",
+    IGUI_PhunSpawn_Setting_Description = "Description",
+    IGUI_PhunSpawn_Setting_AutoDiscovered = "Auto Discovered",
+    IGUI_PhunSpawn_Setting_Discoverable = "Discoverable",
+    IGUI_PhunSpawn_Activate = "Activate device",
+    IGUI_PhunSpawn_StrangeDevice = "Strange device",
+    IGUI_PhunSpawn_Activate_Tooltip = "Activate this device to help others wake",
+    IGUI_PhunSpawn_AlreadyActivated = "You have already activated this device",
+    IGUI_PhunSpawn_AlreadyActivated_Tooltip = "You have already activated this device",
+}

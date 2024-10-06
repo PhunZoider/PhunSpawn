@@ -1,0 +1,14 @@
+module Base
+{
+	sound PhunSpawn_Activate
+	{
+        category = Player,
+		loop = false, 
+		is3D = true,
+        clip { 
+			file = media/sound/PhunSpawn_Activate.ogg, 
+			distanceMax = 20, 
+			volume = 0.3f 
+		}
+	}
+}

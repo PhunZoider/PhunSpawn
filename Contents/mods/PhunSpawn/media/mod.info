@@ -1,0 +1,9 @@
+title=PhunSpawn
+name=PhunSpawn
+id=PhunSpawn
+authors=UburGeek
+description=Reworked spawning system
+poster=poster.png
+require=PhunTools
+pack=phunspawn
+tiledef=phunspawn 1532
