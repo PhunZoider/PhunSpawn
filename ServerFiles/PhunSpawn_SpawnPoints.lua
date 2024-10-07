@@ -3,17 +3,17 @@ return {{
     title = "Westpoint Clinic",
     description = "A medium city in Kentucky",
     autoDiscovered = true,
-    x = 11867,
-    y = 6915,
-    z = 0
+    x = 11864,
+    y = 6914,
+    z = 1
 }, {
     city = "Rosewood",
     title = "Rosewood Medical",
     description = "An easier city in Kentucky",
     autoDiscovered = true,
-    x = 8087,
-    y = 11521,
-    z = 0
+    x = 8091,
+    y = 11523,
+    z = 1
 }, {
     city = "Pineville",
     title = "Central Medical",
