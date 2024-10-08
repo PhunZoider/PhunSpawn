@@ -318,7 +318,6 @@ function PhunSpawnSelectorUI:exitRoom(destinationTitle, destinationCity, destina
     print("exitRoom for ", destinationTitle, " in ", destinationCity, "x ", destinationX, ", y ", destinationY, ", z ",
         destinationZ)
 
-    -- local message = getTextOrNull("IGUI_PhunMart.Error." .. arguments.message) or arguments.message
     local message = getText("IGUI_PhunSpawn_Confirm_Exit_Room", destinationTitle, destinationCity)
     local w = 300
     local h = 200
@@ -366,7 +365,6 @@ function PhunSpawnSelectorUI:exitRoom(destinationTitle, destinationCity, destina
                         end
 
                         -- remove all zeds from room
-                        -- TODO: Maybe remove all zeds from building?
                         for itSq = 0, squares:size() - 1, 1 do
                             local squareToCheck = squares:get(itSq)
                             for i = squareToCheck:getMovingObjects():size(), 1, -1 do
