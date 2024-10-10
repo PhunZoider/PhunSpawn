@@ -16,7 +16,7 @@ function UI.OnOpenPanel(playerObj, obj)
         sendClientCommand(playerObj, PhunSpawn.name, PhunSpawn.commands.getAllSpawns, {})
     end
 
-    local data = PhunSpawn:getSpawnPoint(obj) or {}
+    local data = CPhunSpawnSystem.instance:getSpawnPoint(obj) or {}
 
     if not data.city then
         if PhunZones then
@@ -60,14 +60,7 @@ function UI:delete()
     local modal = ISModalDialog:new(getCore():getScreenWidth() / 2 - w / 2, getCore():getScreenHeight() / 2 - h / 2, w,
         h, message, true, self, function(self, button)
             if button.internal == "YES" then
-                sledgeDestroy(self.obj);
-
-                local key = PhunSpawn:getKey(self.obj)
-                PhunSpawn:removeDiscovery(self.player, key)
-
-                sendClientCommand(self.player, PhunSpawn.name, PhunSpawn.commands.deleteSpawnPoint, {
-                    key = key
-                })
+                CPhunSpawnSystem.instance:deleteObject(self.obj, self.player)
                 self:close()
             end
         end)
@@ -188,8 +181,7 @@ function UI:createChildren()
         getText("Save"), self, function()
             self:isValid()
             if self.validData then
-                self.obj:getModData().PhunSpawn = self.validData
-                sendClientCommand(self.player, PhunSpawn.name, PhunSpawn.commands.upsertSpawnPoint, self.validData)
+                CPhunSpawnSystem.instance:upsertObject(self.obj, self.validData)
                 self:close()
             end
         end)
@@ -216,6 +208,10 @@ function UI:createChildren()
 
     self.cancel = ISButton:new(((self.width / 3) * 2) + padding, self.height - 35, (self.width / 3) - (padding * 3), 25,
         getText("Cancel"), self, function()
+            local md = self.obj:getModData()
+            if md.PhunSpawn.virgin then
+                sledgeDestroy(self.obj)
+            end
             self:close()
         end)
     self.cancel:initialise()

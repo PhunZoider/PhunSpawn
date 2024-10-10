@@ -22,20 +22,31 @@ PhunSpawnCursor = ISBuildingObject:derive("PhunSpawnCursor")
 function PhunSpawnCursor:create(x, y, z, north, sprite)
     local cell = getWorld():getCell()
     local square = cell:getGridSquare(x, y, z)
-    local spawner = IsoThumpable.new(cell, self.square, self.spriteName, north, self)
-    spawner:setName("PhunSpawner")
-    spawner:setSprite(self.spriteName)
-    spawner:setIsThumpable(false);
-    spawner:setIsDismantable(false);
-    spawner:getModData().PhunSpawn = {
+
+    CPhunSpawnSystem.instance:createAtSquare(square, self.character, {
         key = PhunSpawn:getKey(square),
+        city = "City at " .. x .. ", " .. y,
+        title = "Building name",
+        discoverable = true,
         x = x,
         y = y,
         z = z
-    }
-    square:AddSpecialObject(spawner)
-    spawner:transmitCompleteItemToServer()
-    PhunSpawnPointSettingUI.OnOpenPanel(getSpecificPlayer(self.player), spawner)
+    })
+
+    -- local spawner = IsoObject.new(self.square, self.spriteName)
+
+    -- spawner:setName("PhunSpawner")
+    -- spawner:setSprite(self.spriteName)
+    -- spawner:getModData().PhunSpawn = {
+    --     key = PhunSpawn:getKey(square),
+    --     virgin = true,
+    --     x = x,
+    --     y = y,
+    --     z = z
+    -- }
+    -- square:AddSpecialObject(spawner)
+    -- spawner:transmitCompleteItemToServer()
+
 end
 
 function PhunSpawnCursor:walkTo(x, y, z)
@@ -43,30 +54,40 @@ function PhunSpawnCursor:walkTo(x, y, z)
 end
 
 function PhunSpawnCursor:isValid(square)
+
     if square:TreatAsSolidFloor() and square:isFree(false) then
-        local westWall = false
-        local northWall = false
-        for i = 0, square:getObjects():size() - 1 do
-            local obj = square:getObjects():get(i);
-            local props = obj:getProperties()
-            if props:Is(IsoFlagType.WallN or IsoFlagType.WallW) or props:Is(IsoFlagType.WallNW) then
-                self.spriteName = "phunspawn_01_1"
-                return true
-            elseif props:Is(IsoFlagType.WallW) then
-                self.spriteName = "phunspawn_01_0"
-                return true
-            end
+
+        local north = square:getWall(true)
+        local west = square:getWall(false)
+
+        if north and self.placeNorth then
+            self.direction = "N"
+            self.spriteName = "phunspawn_01_4"
+        elseif west and not self.placeNorth then
+            self.direction = "W"
+            self.spriteName = "phunspawn_01_6"
+        else
+            return false
         end
-        return false
+        return true
+
+    end
+end
+
+function PhunSpawnCursor:rotateKey(key)
+    if key == getCore():getKey("Rotate building") then
+        self.placeNorth = not self.placeNorth
     end
 end
 
 function PhunSpawnCursor:render(x, y, z, square)
     local player = getPlayer()
 
-    if not self.floorSprite then
-        self.floorSprite = IsoSprite.new()
-        self.floorSprite:LoadFramesNoDirPageSimple('media/ui/FloorTileCursor.png')
+    local sprite2 = IsoSprite.new();
+    if self.placeNorth then
+        sprite2:LoadFramesNoDirPageSimple("phunspawn_01_4");
+    else
+        sprite2:LoadFramesNoDirPageSimple("phunspawn_01_6");
     end
 
     local spriteFree = self:isValid(square)
@@ -74,24 +95,25 @@ function PhunSpawnCursor:render(x, y, z, square)
         spriteFree = false
     end
     if spriteFree then
-        self.floorSprite:RenderGhostTile(x, y, z);
+        sprite2:RenderGhostTile(x, y, z);
     else
-        self.floorSprite:RenderGhostTileRed(x, y, z);
+        sprite2:RenderGhostTileRed(x, y, z);
     end
 
 end
 
-function PhunSpawnCursor:new(sprite, northSprite, character)
+function PhunSpawnCursor:new(sprite, north, character)
     local o = {}
     setmetatable(o, self)
     self.__index = self
     o:init()
-    o:setSprite(sprite)
-    o:setNorthSprite(northSprite)
+    o:setSprite(sprite or "phunspawn_01_4")
+    o:setNorthSprite(north and "phunspawn_01_4")
     o.character = character
     o.player = character:getPlayerNum()
     o.noNeedHammer = true
     o.skipBuildAction = true
+    o.placeNorth = north
     return o
 end
 

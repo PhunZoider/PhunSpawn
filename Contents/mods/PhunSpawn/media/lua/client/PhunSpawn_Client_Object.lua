@@ -3,12 +3,13 @@ if not isClient() then
 end
 require "Map/CGlobalObject"
 local PS = PhunSpawn
-CPhunSpawnObject = CGlobalObject:derive("spawnPoint")
+CPhunSpawnObject = CGlobalObject:derive("CPhunSpawnObject")
 local spawnPoint = CPhunSpawnObject
 
 function spawnPoint:new(luaSystem, globalObject)
     local o = CGlobalObject.new(self, luaSystem, globalObject)
-    o.poop = true
+    -- Initialize your object properties. eg
+    -- o.status = "active"
     return o
 end
 
@@ -24,4 +25,10 @@ end
 
 function spawnPoint:open(playerObj)
     PhunSpawnSelectorUI.OnOpenPanel(playerObj, self)
+end
+
+function spawnPoint:OnLuaObjectUpdated(luaObject)
+    print("OnLuaObjectUpdated")
+    -- luaObject fields were updated with new values from the server
+    self:noise('OnLuaObjectUpdated')
 end

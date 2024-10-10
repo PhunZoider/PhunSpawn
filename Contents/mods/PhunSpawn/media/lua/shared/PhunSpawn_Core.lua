@@ -9,6 +9,7 @@ PhunSpawn = {
         allSpawnPoints = "allSpawnPoints",
         killZombie = "killZombie",
         upsertSpawnPoint = "upsertSpawnPoint",
+        upsertedSpawnPoint = "upsertedSpawnPoint",
         deleteSpawnPoint = "deleteSpawnPoint",
         getMyDiscoveries = "getMyDiscoveries",
         registerDiscovery = "registerDiscovery"
@@ -22,28 +23,14 @@ PhunSpawn = {
         spawnPoints = nil,
         allSpawnPoints = nil,
         discovered = nil
-    }
+    },
+    system = nil
 }
 
 -- Setup any events
 for _, event in pairs(PhunSpawn.events) do
     if not Events[event] then
         LuaEventManager.AddEvent(event)
-    end
-end
-
-function PhunSpawn:ini()
-    -- initialize local data
-    self.data.spawnPoints = ModData.getOrCreate(self.consts.spawnpoints);
-    self.data.discovered = ModData.getOrCreate(self.consts.discoveries);
-    if isClient() then
-        -- request latest data from server
-        ModData.request(self.consts.spawnpoints)
-        -- we don't need everyones data, just our own
-        sendClientCommand(self.name, self.commands.getMyDiscoveries, {})
-    else
-        -- load data from disk
-        self:loadSpawnPoints()
     end
 end
 
@@ -83,41 +70,41 @@ function PhunSpawn:xyzFromKey(key)
     }
 end
 
-function PhunSpawn:getSpawnPoint(keyOrObj)
-    local key = self:getKey(keyOrObj)
-    return self.data.spawnPoints[key]
-end
+-- function PhunSpawn:getSpawnPoint(keyOrObj)
+--     local key = self:getKey(keyOrObj)
+--     return self.data.spawnPoints[key]
+-- end
 
-function PhunSpawn:isDiscovered(player, key)
-    local discoveries = self:getPlayerDiscoveries(player)
-    return discoveries[key] == true
-end
+-- function PhunSpawn:isDiscovered(player, key)
+--     local discoveries = self:getPlayerDiscoveries(player)
+--     return discoveries[key] == true
+-- end
 
-function PhunSpawn:getPlayerDiscoveries(player)
-    local name = type(player) == "string" and player or player:getUsername()
-    if not self.data.discovered then
-        self.data.discovered = {}
-    end
-    if not self.data.discovered[name] then
-        self.data.discovered[name] = {}
-    end
-    return self.data.discovered[name]
-end
+-- function PhunSpawn:getPlayerDiscoveries(player)
+--     local name = type(player) == "string" and player or player:getUsername()
+--     if not self.system.data.discovered then
+--         self.data.discovered = {}
+--     end
+--     if not self.system.data.discovered[name] then
+--         self.system.data.discovered[name] = {}
+--     end
+--     return self.system.data.discovered[name]
+-- end
 
-function PhunSpawn:registerDiscovery(player, key)
-    local name = type(player) == "string" and player or player:getUsername()
-    local discoveries = self:getPlayerDiscoveries(player)
-    discoveries[key] = true
-    if isClient() then
-        -- tell server about this discovery
-        sendServerCommand(self.name, self.commands.registerDiscovery, {
-            playername = name,
-            key = key
-        })
-    end
-    return discoveries
-end
+-- function PhunSpawn:registerDiscovery(player, key)
+--     local name = type(player) == "string" and player or player:getUsername()
+--     local discoveries = self:getPlayerDiscoveries(player)
+--     discoveries[key] = true
+--     if isClient() then
+--         -- tell server about this discovery
+--         sendServerCommand(self.name, self.commands.registerDiscovery, {
+--             playername = name,
+--             key = key
+--         })
+--     end
+--     return discoveries
+-- end
 
-function PhunSpawn:removeDiscovery(player, key)
-    self:getPlayerDiscoveries(player)[key] = nil
-end
+-- function PhunSpawn:removeDiscovery(player, key)
+--     self:getPlayerDiscoveries(player)[key] = nil
+-- end

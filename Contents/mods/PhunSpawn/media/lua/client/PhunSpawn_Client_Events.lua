@@ -3,10 +3,6 @@ if not isClient() then
 end
 local PhunSpawn = PhunSpawn
 
-Events.OnInitGlobalModData.Add(function()
-    PhunSpawn:ini()
-end)
-
 Events.OnReceiveGlobalModData.Add(function(key, data)
     if key == PhunSpawn.consts.spawnpoints then
         PhunSpawn.data.spawnPoints = data
@@ -24,33 +20,26 @@ local function contextMenu(playerIndex, context, worldObjects, test)
     for _, w in ipairs(worldObjects) do -- find object to interact with; code support for controllers
         local square = w:getSquare()
         if square then
-            local objects = square:getObjects()
-            for i = 0, objects:size() - 1 do
-                local obj = objects:get(i)
-                local sprite = obj:getSprite():getName()
-                if sprite == "phunspawn_01_1" or sprite == "phunspawn_01_0" then
-                    spawnerObj = obj
-                    break
-                end
-            end
+            spawnerObj = CPhunSpawnSystem.instance:getIsoObjectOnSquare(square)
         end
     end
 
     if spawnerObj then
-        local data = PhunSpawn:getSpawnPoint(spawnerObj)
-        if data then
-            if data.key and data.discoverable ~= false then
+        local data = CPhunSpawnSystem.instance:getSpawnPoint(spawnerObj)
+        if data and data.key then
+            if data.discoverable ~= false then
 
                 local option = context:addOptionOnTop(getText("IGUI_PhunSpawn_Activate"), worldObjects, function()
                     PhunSpawn:registerDiscovery(player, data.key)
                     getSoundManager():PlaySound("PhunSpawn_Activate", false, 0):setVolume(0.50);
                 end, playerIndex)
 
-                local isDiscoverd = PhunSpawn:isDiscovered(player, data.key) or data.autoDiscover == true
+                local isDiscoverd = CPhunSpawnSystem.instance:isDiscovered(player, data.key) or data.autoDiscovered ==
+                                        true
 
                 local toolTip = ISToolTip:new();
                 toolTip:setVisible(isDiscoverd);
-                toolTip:setName(getText("IGUI_PhunSpawn_StrangeDevice"));
+                toolTip:setName(getText("IGUI_PhunSpawn_StrangeVent"));
                 if isDiscoverd then
                     toolTip.description = getText("IGUI_PhunSpawn_AlreadyActivated_Tooltip")
                 else
@@ -65,7 +54,7 @@ local function contextMenu(playerIndex, context, worldObjects, test)
     if isAdmin() then
 
         context:addOption(getText("IGUI_PhunSpawn_Create_Spawner"), worldObjects, function()
-            getCell():setDrag(PhunSpawnCursor:new("phunspawn_01_1", true, player), playerIndex)
+            getCell():setDrag(PhunSpawnCursor:new("phunspawn_01_4", true, player), playerIndex)
         end, playerIndex)
 
         if spawnerObj then
@@ -83,6 +72,24 @@ local function contextMenu(playerIndex, context, worldObjects, test)
 end
 
 Events.OnFillWorldObjectContextMenu.Add(contextMenu)
+
+local function OnKeyPressed(key)
+    if key == getCore():getKey("Interact") then
+        local player = getPlayer()
+        if not player or player:isDead() then
+            return
+        end
+        if MainScreen.instance:isVisible() then
+            return
+        end
+        local sq = player:getSquare()
+        if sq then
+            CPhunSpawnSystem.instance:discoverSquare(sq, player)
+        end
+    end
+end
+
+Events.OnKeyPressed.Add(OnKeyPressed)
 
 local function OnPlayerInit(player)
     PhunSpawn:PlayerInit(player)

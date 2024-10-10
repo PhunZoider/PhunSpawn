@@ -1,6 +1,7 @@
 local PS = PhunSpawn
-
+local SPhunSpawnSystem = SPhunSpawnSystem
 local Commands = {}
+
 Commands.killZombie = function(_, args)
     local id = args.id
     local zombies = getCell():getZombieList()
@@ -15,29 +16,32 @@ Commands.killZombie = function(_, args)
 end
 
 Commands[PS.commands.getAllSpawns] = function(player)
-    local spawns = PS:getSpawnPoints(true)
+    local spawns = SPhunSpawnSystem.instance:getSpawnPoints(true)
     sendServerCommand(player, PS.name, PS.commands.allSpawnPoints, spawns)
 end
 
 Commands[PS.commands.upsertSpawnPoint] = function(player, args)
-    PS:upsertSpawnPoint(args)
-    local allData = PS:getSpawnPoints(true)
-    sendServerCommand(player, PS.name, PS.commands.allSpawnPoints, allData)
+    SPhunSpawnSystem.instance:upsertSpawnPoint(args)
+    local allData = SPhunSpawnSystem.instance:getSpawnPoints(true)
+    -- sendServerCommand(player, PS.name, PS.commands.allSpawnPoints, allData)
+    -- print("Senfing")
+    -- PhunTools:printTable(allData[args.key])
+    sendServerCommand(player, PS.name, PS.commands.upsertedSpawnPoint, allData[args.key])
 end
 
 Commands[PS.commands.deleteSpawnPoint] = function(player, args)
-    PS:deleteSpawnPoint(args.key)
-    local allData = PS:getSpawnPoints(true)
-    sendServerCommand(player, PS.name, PS.commands.allSpawnPoints, allData)
+    SPhunSpawnSystem.instance:deleteSpawnPoint(args.key)
+    -- local allData = SPhunSpawnSystem.instance:getSpawnPoints(true)
+    -- sendServerCommand(player, PS.name, PS.commands.allSpawnPoints, allData)
 end
 
 Commands[PS.commands.getMyDiscoveries] = function(player)
-    local data = PS:getDiscoveries(player)
+    local data = SPhunSpawnSystem.instance:getPlayerDiscoveries(player)
     sendServerCommand(player, PS.name, PS.commands.getMyDiscoveries, data)
 end
 
 Commands[PS.commands.registerDiscovery] = function(player, args)
-    local discovered = PS:registerDiscovery(args.playername, args.key)
+    local discovered = SPhunSpawnSystem.instance:registerDiscovery(args.playername, args.key)
     sendServerCommand(player, PS.name, PS.commands.getMyDiscoveries, discovered)
 end
 

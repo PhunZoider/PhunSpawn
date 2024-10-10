@@ -1,18 +1,18 @@
 return {{
     city = "Westpoint",
-    title = "Westpoint Clinic",
-    description = "A medium city in Kentucky",
+    title = "Vacant office",
+    description = "The top floor of the vacant office building in Westpoint.",
     autoDiscovered = true,
-    x = 11864,
-    y = 6914,
-    z = 1
+    x = 11970,
+    y = 6944,
+    z = 2
 }, {
     city = "Rosewood",
-    title = "Rosewood Medical",
-    description = "An easier city in Kentucky",
+    title = "Rosewood Christian Church",
+    description = "The empty upstairs of the church in downtown Rosewood. Good starting point",
     autoDiscovered = true,
-    x = 8091,
-    y = 11523,
+    x = 8133,
+    y = 11542,
     z = 1
 }, {
     city = "Pineville",

@@ -15,6 +15,10 @@ PhunSpawnSelectorUI.instances = {}
 
 function PhunSpawnSelectorUI.OnOpenPanel(playerObj)
 
+    if isAdmin() and PhunSpawn.data.allSpawnPoints == nil then
+        sendClientCommand(playerObj, PhunSpawn.name, PhunSpawn.commands.getAllSpawns, {})
+    end
+
     local pNum = playerObj:getPlayerNum()
     local ps = PhunSpawn
     local data = ps.data.spawnPoints or {}
@@ -54,13 +58,13 @@ function PhunSpawnSelectorUI.OnOpenPanel(playerObj)
 
 end
 
-function PhunSpawnSelectorUI:rebuild()
+function PhunSpawnSelectorUI:rebuild(spawnpoints)
 
     self.city:clear()
 
     local cityKeys = {}
 
-    local data = self.spawns or {}
+    local data = spawnpoints or self.spawns or {}
 
     local cities = {}
     local locations = {}
@@ -76,7 +80,7 @@ function PhunSpawnSelectorUI:rebuild()
     }
     local cityCount = 0
 
-    local discoveries = PhunSpawn:getPlayerDiscoveries(self.player)
+    local discoveries = CPhunSpawnSystem.instance:getPlayerDiscoveries(self.player)
 
     for k, spawn in pairs(data) do
 
@@ -506,8 +510,29 @@ function PhunSpawnSelectorUI:createChildren()
     self:addChild(self.miniMap);
     self:InitPlayer()
 
+    x = padding
+
+    if isAdmin() then
+        self.showAll = ISTickBox:new(x, self.height - 35, 25, 25, "", self, function()
+
+        end)
+        self.showAll:initialise();
+        self.showAll:addOption("Show all");
+        self.showAll.changeOptionMethod = function()
+            if self.showAll.selected[1] then
+                self:rebuild(PhunSpawn.data.allSpawnPoints)
+            else
+                self:rebuild(PhunSpawn.data.spawnPoints)
+            end
+        end
+        self.showAll:setSelected(1, "Show all")
+        self:addChild(self.showAll);
+
+        x = x + 100
+    end
+
     -- ok button
-    self.ok = ISButton:new(padding, self.height - 35, self.width - (padding * 2), 25, "Leave Room", self, function()
+    self.ok = ISButton:new(x, self.height - 35, self.width - x - padding, 25, "Leave Room", self, function()
 
         if self.selectedLocation then
             local loc = self.selectedLocation

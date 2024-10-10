@@ -1,0 +1,30 @@
+module PhunSpawn
+{
+	imports
+	{
+		Base
+	}
+
+	item Vent
+	{
+        Weight = 1.0,
+	    DisplayName = RepellentPaint,
+        Type	=	Drainable,
+	    Icon = RepellentPaint,
+        DisplayCategory = Paint,
+        UseDelta	=	0.1000,
+        cantBeConsolided = TRUE
+	}
+
+	recipe Make Vent
+	{
+        keep [Recipe.GetItemTypes.Screwdriver],
+        Base.MetalBar = 10,
+        Base.SmallSheetMetal = 15,
+        CanBeDoneFromFloor:false,
+        Time:400,
+        SkillRequired:Electricity=4;MetalWelding=2,
+        Result: Moveables.phunspawn_01_4,
+        Category:Electrical,
+	}
+}

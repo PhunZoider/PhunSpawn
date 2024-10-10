@@ -12,10 +12,9 @@ Commands[PS.commands.getMyDiscoveries] = function(player, data)
     PS.data.discoveries[player:getUsername()] = data
 end
 
--- Events.OnServerCommand.Add(function(module, command, arguments)
---     if module == PS.name and Commands[command] then
---         Commands[command](arguments)
---     end
--- end)
+Commands[PS.commands.upsertedSpawnPoint] = function(player, data)
+    local spawner = CPhunSpawnSystem.instance:getIsoObjectAt(data.x, data.y, data.z)
+    PhunSpawnPointSettingUI.OnOpenPanel(self.character, spawner)
+end
 
 return Commands
