@@ -23,7 +23,9 @@ function PhunSpawnCursor:create(x, y, z, north, sprite)
     local cell = getWorld():getCell()
     local square = cell:getGridSquare(x, y, z)
 
-    CPhunSpawnSystem.instance:createAtSquare(square, self.character, {
+    -- TODO: ask for detauks FIRST, then create.
+    -- should laso record owner
+    return CPhunSpawnSystem.instance:createAtSquare(square, self.character, {
         key = PhunSpawn:getKey(square),
         city = "City at " .. x .. ", " .. y,
         title = "Building name",
@@ -33,29 +35,18 @@ function PhunSpawnCursor:create(x, y, z, north, sprite)
         z = z
     })
 
-    -- local spawner = IsoObject.new(self.square, self.spriteName)
-
-    -- spawner:setName("PhunSpawner")
-    -- spawner:setSprite(self.spriteName)
-    -- spawner:getModData().PhunSpawn = {
-    --     key = PhunSpawn:getKey(square),
-    --     virgin = true,
-    --     x = x,
-    --     y = y,
-    --     z = z
-    -- }
-    -- square:AddSpecialObject(spawner)
-    -- spawner:transmitCompleteItemToServer()
-
 end
 
 function PhunSpawnCursor:walkTo(x, y, z)
     return true
 end
 
+local invalidInstances = {"IsoWindow", "IsoDoor", "IsoThumpable", "IsoStove", "IsoLightSwitch", "IsoRadio",
+                          "IsoGenerator", "IsoCurtain"}
+
 function PhunSpawnCursor:isValid(square)
 
-    if square:TreatAsSolidFloor() and square:isFree(false) then
+    if square:TreatAsSolidFloor() and square:isFree(true) then
 
         local north = square:getWall(true)
         local west = square:getWall(false)
@@ -69,6 +60,22 @@ function PhunSpawnCursor:isValid(square)
         else
             return false
         end
+
+        local objects = square:getObjects();
+        for i = 0, objects:size() - 1 do
+            local object = objects:get(i);
+            if object then
+                for _, invalidInstance in ipairs(invalidInstances) do
+                    if instanceof(object, invalidInstance) then
+                        return false
+                    end
+                end
+                if object:getName() == "PhunSpawnPoint" then
+                    return false
+                end
+            end
+        end
+
         return true
 
     end

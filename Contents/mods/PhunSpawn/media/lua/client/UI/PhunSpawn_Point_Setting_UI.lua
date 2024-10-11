@@ -12,11 +12,11 @@ UI.instances = {}
 
 function UI.OnOpenPanel(playerObj, obj)
 
-    if PhunSpawn.data.allSpawnPoints == nil then
+    if CPhunSpawnSystem.instance.data.allSpawnPoints == nil then
         sendClientCommand(playerObj, PhunSpawn.name, PhunSpawn.commands.getAllSpawns, {})
     end
 
-    local data = CPhunSpawnSystem.instance:getSpawnPoint(obj) or {}
+    local data = obj:getModData().PhunSpawn --  CPhunSpawnSystem.instance:getSpawnPoint(obj) or {}
 
     if not data.city then
         if PhunZones then

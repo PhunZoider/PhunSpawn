@@ -1,10 +1,13 @@
 local PS = PhunSpawn
+require "PhunSpawn_Server_System"
+
 local SPhunSpawnSystem = SPhunSpawnSystem
 local Commands = {}
 
-Commands.killZombie = function(_, args)
+Commands[PS.commands.killZombie] = function(player, args)
     local id = args.id
-    local zombies = getCell():getZombieList()
+    print("Killing zombie with id: " .. id)
+    local zombies = player:getCell():getZombieList()
     for i = 0, zombies:size() - 1 do
         local zombie = zombies:get(i)
         if instanceof(zombie, "IsoZombie") and zombie:getOnlineID() == id then
@@ -26,7 +29,10 @@ Commands[PS.commands.upsertSpawnPoint] = function(player, args)
     -- sendServerCommand(player, PS.name, PS.commands.allSpawnPoints, allData)
     -- print("Senfing")
     -- PhunTools:printTable(allData[args.key])
-    sendServerCommand(player, PS.name, PS.commands.upsertedSpawnPoint, allData[args.key])
+    SPhunSpawnSystem.instance:sendCommand(PS.commands.upsertedSpawnPoint, {
+        username = player:getUsername(),
+        data = allData[args.key]
+    })
 end
 
 Commands[PS.commands.deleteSpawnPoint] = function(player, args)
@@ -37,12 +43,12 @@ end
 
 Commands[PS.commands.getMyDiscoveries] = function(player)
     local data = SPhunSpawnSystem.instance:getPlayerDiscoveries(player)
-    sendServerCommand(player, PS.name, PS.commands.getMyDiscoveries, data)
+    SPhunSpawnSystem.instance:sendCommand(player, PS.name, PS.commands.getMyDiscoveries, data)
 end
 
 Commands[PS.commands.registerDiscovery] = function(player, args)
     local discovered = SPhunSpawnSystem.instance:registerDiscovery(args.playername, args.key)
-    sendServerCommand(player, PS.name, PS.commands.getMyDiscoveries, discovered)
+    SPhunSpawnSystem.instance:sendCommand(player, PS.name, PS.commands.getMyDiscoveries, discovered)
 end
 
 return Commands

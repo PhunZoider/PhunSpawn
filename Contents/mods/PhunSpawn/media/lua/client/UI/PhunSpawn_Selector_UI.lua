@@ -162,23 +162,6 @@ function PhunSpawnSelectorUI:rebuild(spawnpoints)
     local api = self.miniMap.mapAPI
     api:centerOn(centerPointTotal.x / cityCount, centerPointTotal.y / cityCount)
 
-    -- TODO: Figure out how to zoom to bounding box
-    -- local zx = api:worldToUIX(boundsTotal.x, boundsTotal.y)
-    -- local zy = api:worldToUIY(boundsTotal.x2, boundsTotal.y2)
-
-    -- local zoom = api:getZoomF()
-    -- local w = self.miniMap:getWidth()
-    -- local h = self.miniMap:getHeight()
-
-    -- local zoomX = (boundsTotal.x2 - boundsTotal.x) / w
-    -- local zoomY = (boundsTotal.y2 - boundsTotal.y) / h
-    -- local newZoom = math.min(zoomX, zoomY)
-    -- local scale = ISMap.SCALE
-    -- local newScale = newZoom / zoom
-    -- api:setZoom(8)
-
-    -- api:zoomAt(centerPointTotal.x / cityCount, centerPointTotal.y / cityCount, newZoom)
-
 end
 
 function PhunSpawnSelectorUI:refreshCitiesCombo()
@@ -352,22 +335,21 @@ function PhunSpawnSelectorUI:exitRoom(destinationTitle, destinationCity, destina
                         Events.OnPlayerUpdate.Remove(playerPorting)
                         return
                     end
+
+                    local free = AdjacentFreeTileFinder.FindClosest(square, player)
+                    if free then
+                        player:setX(free:getX())
+                        player:setY(free:getY())
+                        player:setZ(free:getZ())
+                        player:setLx(free:getX())
+                        player:setLy(free:getY())
+                        player:setLz(free:getZ())
+                        Events.OnPlayerUpdate.Remove(playerPorting)
+                    end
+
                     local room = square:getRoom()
                     if room then
-
                         local squares = room:getSquares()
-                        -- move to a random free square in the room
-                        local free = room:getRandomFreeSquare()
-                        if free then
-                            player:setX(free:getX())
-                            player:setY(free:getY())
-                            player:setZ(free:getZ())
-                            player:setLx(free:getX())
-                            player:setLy(free:getY())
-                            player:setLz(free:getZ())
-                            Events.OnPlayerUpdate.Remove(playerPorting)
-                        end
-
                         -- remove all zeds from room
                         for itSq = 0, squares:size() - 1, 1 do
                             local squareToCheck = squares:get(itSq)
@@ -383,7 +365,40 @@ function PhunSpawnSelectorUI:exitRoom(destinationTitle, destinationCity, destina
                                 end
                             end
                         end
+                    else
+                        -- outside?
                     end
+                    -- if room then
+
+                    --     local squares = room:getSquares()
+                    --     -- move to a random free square in the room
+                    --     local free = room:getRandomFreeSquare()
+                    --     if free then
+                    --         player:setX(free:getX())
+                    --         player:setY(free:getY())
+                    --         player:setZ(free:getZ())
+                    --         player:setLx(free:getX())
+                    --         player:setLy(free:getY())
+                    --         player:setLz(free:getZ())
+                    --         Events.OnPlayerUpdate.Remove(playerPorting)
+                    --     end
+
+                    --     -- remove all zeds from room
+                    --     for itSq = 0, squares:size() - 1, 1 do
+                    --         local squareToCheck = squares:get(itSq)
+                    --         for i = squareToCheck:getMovingObjects():size(), 1, -1 do
+                    --             local testZed = squareToCheck:getMovingObjects():get(i - 1)
+                    --             if instanceof(testZed, "IsoZombie") then
+                    --                 local onlineID = testZed:getOnlineID()
+                    --                 sendClientCommand(PhunSpawn.name, PhunSpawn.commands.killZombie, {
+                    --                     id = onlineID
+                    --                 })
+                    --                 testZed:removeFromWorld()
+                    --                 testZed:removeFromSquare()
+                    --             end
+                    --         end
+                    --     end
+                    -- end
                 end
                 Events.OnPlayerUpdate.Add(playerPorting)
             end

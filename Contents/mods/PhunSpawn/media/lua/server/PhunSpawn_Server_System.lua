@@ -4,15 +4,16 @@ end
 local PS = PhunSpawn
 local sandbox = SandboxVars.PhunSpawn
 require "Map/SGlobalObjectSystem"
-
+local Commands = nil
 SPhunSpawnSystem = SGlobalObjectSystem:derive("SPhunSpawnSystem")
-SPhunSpawnSystem.Commands = require "PhunSpawn_Server_Commands"
+
 function SPhunSpawnSystem:new()
     local o = SGlobalObjectSystem.new(self, "phunspawn")
     o.data = {
         spawnPoints = ModData.getOrCreate(PS.consts.spawnpoints),
         allSpawnPoints = nil,
-        discovered = ModData.getOrCreate(PS.consts.discoveries)
+        discovered = ModData.getOrCreate(PS.consts.discoveries),
+        chunkedSpawnPoints = {}
     }
     o:loadSpawnPoints()
     return o
@@ -56,15 +57,11 @@ end
 local oldOnChunkLoaded = SGlobalObjectSystem.OnChunkLoaded
 SGlobalObjectSystem.OnChunkLoaded = function(self, wx, wy)
 
-    print("''''''''''''''''''''''''''''''''")
-    print("OnChunkLoaded ", wx, wy)
-    print("11111111111111111111111111111111")
-
     local ckey = wx .. "_" .. wy
-    if PS.data.chunkedSpawnPoints[ckey] then
+    if self.data.chunkedSpawnPoints[ckey] then
         -- check that chunks spawn points are loaded
         print("Following spawn points need verification ", ckey)
-        PhunTools:printTable(PS.data.chunkedSpawnPoints[ckey])
+        PhunTools:printTable(self.data.chunkedSpawnPoints[ckey])
     else
         print("No spawn points for chunk ", ckey)
     end
@@ -171,11 +168,21 @@ end
 
 function SPhunSpawnSystem:upsertSpawnPoint(data)
     local points = self:getSpawnPoints(true)
+    print("upsertSpawnPoint ", tostring(data))
+    PhunTools:printTable(data)
     local key = PS:getKey(data)
     data.key = key
+    if not points[key] then
+        -- new spawn point
+        local sq = getCell():getGridSquare(data.x, data.y, data.z)
+        if sq then
+            SPhunSpawnSystem.addToWorld(sq, data, "south")
+        end
+
+    end
     points[key] = data
     self.data.allSpawnPoints = points
-    PhunTools:saveTable(self.consts.spawnpoints .. ".lua", points)
+    PhunTools:saveTable(PS.consts.spawnpoints .. ".lua", points)
     self:loadSpawnPoints()
 end
 
@@ -221,6 +228,19 @@ function SPhunSpawnSystem:verifyOnLoadSquare(square)
             print("Missing existing object for " .. v.x .. ',' .. v.y .. ',' .. v.z)
             self.addToWorld(square, v, "south")
         end
+    end
+end
+
+function SPhunSpawnSystem:OnClientCommand(command, player, args)
+    if not Commands then
+        Commands = require "PhunSpawn_Server_Commands"
+    end
+    print("OnClientCommand ", command)
+    for k, v in pairs(Commands) do
+        print(k)
+    end
+    if Commands[command] then
+        Commands[command](player, args)
     end
 end
 
