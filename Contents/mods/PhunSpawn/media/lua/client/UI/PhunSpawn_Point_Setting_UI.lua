@@ -10,13 +10,20 @@ PhunSpawnPointSettingUI = ISPanelJoypad:derive("PhunSpawnPointSettingUI");
 local UI = PhunSpawnPointSettingUI
 UI.instances = {}
 
-function UI.OnOpenPanel(playerObj, obj)
+function UI.OnOpenPanel(playerObj, obj, data, options)
 
     if CPhunSpawnSystem.instance.data.allSpawnPoints == nil then
         sendClientCommand(playerObj, PhunSpawn.name, PhunSpawn.commands.getAllSpawns, {})
     end
 
-    local data = obj:getModData().PhunSpawn --  CPhunSpawnSystem.instance:getSpawnPoint(obj) or {}
+    if obj and not data then
+        data = obj:getModData().PhunSpawn
+    elseif not data then
+        data = {}
+    end
+
+    options = options or {}
+    local mode = options.mode or "EDIT"
 
     if not data.city then
         if PhunZones then
@@ -27,7 +34,7 @@ function UI.OnOpenPanel(playerObj, obj)
         end
     end
 
-    local square = obj:getSquare()
+    local square = obj and obj.getSquare and obj:getSquare() or nil
 
     local core = getCore()
     local FONT_SCALE = getTextManager():getFontHeight(UIFont.Small) / 14
@@ -40,10 +47,11 @@ function UI.OnOpenPanel(playerObj, obj)
 
     local pIndex = playerObj:getPlayerNum()
     PhunSpawnPointSettingUI.instances[pIndex] = PhunSpawnPointSettingUI:new(x, y, width, height, playerObj, data,
-        square, obj);
+        square, obj, options);
     PhunSpawnPointSettingUI.instances[pIndex]:initialise();
     PhunSpawnPointSettingUI.instances[pIndex]:addToUIManager();
     PhunSpawnPointSettingUI.instances[pIndex]:ensureVisible()
+    PhunSpawnPointSettingUI.instances[pIndex]:isValid()
     return PhunSpawnPointSettingUI.instances[pIndex];
 
 end
@@ -66,6 +74,43 @@ function UI:delete()
         end)
     modal:initialise()
     modal:addToUIManager()
+end
+
+function UI:save()
+    self:isValid()
+    if self.validData then
+        if self.mode == "CREATE" then
+            local x, y, z = self.data.x, self.data.y, self.data.z
+            local square = getSquare(x, y, z)
+            local owner = self.character and self.character:getUsername() or nil
+            CPhunSpawnSystem.instance:createAtSquare(square, self.character, {
+                key = PhunSpawn:getKey(square),
+                city = "City at " .. x .. ", " .. y,
+                title = "Building name",
+                discoverable = true,
+                owner = owner,
+                x = x,
+                y = y,
+                z = z
+            })
+            local item = self.player:getInventory():getFirstTypeRecurse("Escape Vent")
+            if item then
+                self.player:getInventory():DoRemoveItem(item)
+            end
+            self:close()
+        elseif obj then
+            local owner = self.data.owner or (self.character and self.character:getUsername()) or nil
+            local x, y, z = self.data.x, self.data.y, self.data.z
+            local square = getSquare(x, y, z)
+            self.validData.owner = owner
+            self.validData.x = x
+            self.validData.y = y
+            self.validData.z = z
+            CPhunSpawnSystem.instance:upsertObject(self.obj, self.validData)
+            self:close()
+        end
+
+    end
 end
 
 function UI:createChildren()
@@ -110,23 +155,24 @@ function UI:createChildren()
 
     y = y + self.city.height + 5
 
-    self.labelMod = ISLabel:new(padding, y, FONT_HGT_MEDIUM, getText("IGUI_PhunSpawn_Setting_Mod"), 1, 1, 1, 0.5,
-        UIFont.small, true);
-    self.labelMod:initialise();
-    self.labelMod:instantiate();
-    self:addChild(self.labelMod);
+    if isAdmin() then
+        self.labelMod = ISLabel:new(padding, y, FONT_HGT_MEDIUM, getText("IGUI_PhunSpawn_Setting_Mod"), 1, 1, 1, 0.5,
+            UIFont.small, true);
+        self.labelMod:initialise();
+        self.labelMod:instantiate();
+        self:addChild(self.labelMod);
 
-    y = y + self.labelMod.height + 2
-    self.mod = ISTextEntryBox:new(self.data.mod or "", x, y, self.width - (padding * 2), 25);
-    self.mod:initialise();
-    self.mod:instantiate();
-    self.mod.onTextChange = function()
-        self:isValid()
+        y = y + self.labelMod.height + 2
+        self.mod = ISTextEntryBox:new(self.data.mod or "", x, y, self.width - (padding * 2), 25);
+        self.mod:initialise();
+        self.mod:instantiate();
+        self.mod.onTextChange = function()
+            self:isValid()
+        end
+        self:addChild(self.mod);
+
+        y = y + self.mod.height + 5
     end
-    self:addChild(self.mod);
-
-    y = y + self.mod.height + 5
-
     self.labelDescription = ISLabel:new(padding, y, FONT_HGT_MEDIUM, getText("IGUI_PhunSpawn_Setting_Description"), 1,
         1, 1, 0.5, UIFont.small, true);
     self.labelDescription:initialise();
@@ -146,27 +192,29 @@ function UI:createChildren()
 
     y = self.description.y + self.description.height + 5
 
-    self.discoverable = ISTickBox:new(padding, y, 25, 25, "", self, function()
-    end)
-    self.discoverable:initialise();
-    self.discoverable:addOption(getText("IGUI_PhunSpawn_Setting_Discoverable"));
-    self.discoverable.changeOptionMethod = function()
-        self:isValid()
-    end
-    self.discoverable:setSelected(1, self.data.discoverable == true)
-    self:addChild(self.discoverable);
+    if isAdmin() then
+        self.discoverable = ISTickBox:new(padding, y, 25, 25, "", self, function()
+        end)
+        self.discoverable:initialise();
+        self.discoverable:addOption(getText("IGUI_PhunSpawn_Setting_Discoverable"));
+        self.discoverable.changeOptionMethod = function()
+            self:isValid()
+        end
+        self.discoverable:setSelected(1, self.data.discoverable == true)
+        self:addChild(self.discoverable);
 
-    self.autoDiscovered = ISTickBox:new((self.width / 2) - (padding * 2), y, 25, 25, "", self, function()
-    end)
-    self.autoDiscovered:initialise();
-    self.autoDiscovered:addOption(getText("IGUI_PhunSpawn_Setting_AutoDiscovered"));
-    self.autoDiscovered.changeOptionMethod = function()
-        self:isValid()
-    end
-    self.autoDiscovered:setSelected(1, self.data.autoDiscovered == true)
-    self:addChild(self.autoDiscovered);
+        self.autoDiscovered = ISTickBox:new((self.width / 2) - (padding * 2), y, 25, 25, "", self, function()
+        end)
+        self.autoDiscovered:initialise();
+        self.autoDiscovered:addOption(getText("IGUI_PhunSpawn_Setting_AutoDiscovered"));
+        self.autoDiscovered.changeOptionMethod = function()
+            self:isValid()
+        end
+        self.autoDiscovered:setSelected(1, self.data.autoDiscovered == true)
+        self:addChild(self.autoDiscovered);
 
-    y = y + self.city.height + 5
+        y = y + self.city.height + 5
+    end
 
     -- ok button
     self.deleteButton = ISButton:new(padding, self.height - 35, (self.width / 3) - (padding * 3), 25, getText("Delete"),
@@ -175,15 +223,15 @@ function UI:createChildren()
         end)
     self.deleteButton:initialise()
     self:addChild(self.deleteButton)
-
+    if isAdmin() or self.data.owner == self.character:getUsername() then
+        self.deleteButton:setVisible(true)
+    else
+        self.deleteButton:setVisible(false)
+    end
     -- ok button
     self.ok = ISButton:new((self.width / 3) + padding, self.height - 35, (self.width / 3) - (padding * 3), 25,
         getText("Save"), self, function()
-            self:isValid()
-            if self.validData then
-                CPhunSpawnSystem.instance:upsertObject(self.obj, self.validData)
-                self:close()
-            end
+            self:save()
         end)
     self.ok:initialise()
     self:addChild(self.ok)
@@ -208,10 +256,13 @@ function UI:createChildren()
 
     self.cancel = ISButton:new(((self.width / 3) * 2) + padding, self.height - 35, (self.width / 3) - (padding * 3), 25,
         getText("Cancel"), self, function()
-            local md = self.obj:getModData()
-            if md.PhunSpawn.virgin then
-                sledgeDestroy(self.obj)
+            if self.mode ~= "CREATE" then
+                local md = self.obj:getModData()
+                if md.PhunSpawn.virgin then
+                    sledgeDestroy(self.obj)
+                end
             end
+
             self:close()
         end)
     self.cancel:initialise()
@@ -231,11 +282,12 @@ function UI:isValid()
 
     local city = self.city:getText()
     local title = self.title:getText()
-    local mod = self.mod:getText()
+    local mod = self.mod and self.mod:getText() or ""
     local description = self.description:getText()
-    local discoverable = self.discoverable:isSelected(1)
-    local autoDiscovered = self.autoDiscovered:isSelected(1)
-    local x, y, z = self.square:getX(), self.square:getY(), self.square:getZ()
+    local discoverable = self.discoverable and self.discoverable:isSelected(1) or true
+    local autoDiscovered = self.autoDiscovered and self.autoDiscovered:isSelected(1)
+    -- local x, y, z = self.square:getX(), self.square:getY(), self.square:getZ()
+    local x, y, z = self.data.x, self.data.y, self.data.z
     local key = x .. "_" .. y .. "_" .. z
 
     local validColor = {
@@ -278,10 +330,10 @@ function UI:isValid()
             key = key,
             description = description,
             discoverable = discoverable == true,
-            autoDiscovered = autoDiscovered == true,
-            x = x,
-            y = y,
-            z = z
+            autoDiscovered = autoDiscovered == true
+            -- x = x,
+            -- y = y,
+            -- z = z
         }
     else
         self.notOk:setVisible(true)
@@ -290,7 +342,7 @@ function UI:isValid()
 
 end
 
-function UI:new(x, y, width, height, player, data, square, obj)
+function UI:new(x, y, width, height, player, data, square, obj, options)
     local o = {};
     o = ISPanelJoypad:new(x, y, width, height, player);
     setmetatable(o, self);
@@ -341,6 +393,8 @@ function UI:new(x, y, width, height, player, data, square, obj)
     o.data = data
     o.square = square
     o.obj = obj
+    options = options or {}
+    o.mode = options.mode or "EDIT"
     o.anchorRight = true
     o.anchorBottom = true
     o.player = player

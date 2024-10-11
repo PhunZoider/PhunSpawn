@@ -23,17 +23,39 @@ function PhunSpawnCursor:create(x, y, z, north, sprite)
     local cell = getWorld():getCell()
     local square = cell:getGridSquare(x, y, z)
 
-    -- TODO: ask for detauks FIRST, then create.
-    -- should laso record owner
-    return CPhunSpawnSystem.instance:createAtSquare(square, self.character, {
+    local city = "City at " .. x .. ", " .. y
+    if PhunZones then
+        local zone = PhunZones:getLocation(x, y)
+        if zone then
+            city = zone.title
+        end
+    end
+
+    local data = {
         key = PhunSpawn:getKey(square),
-        city = "City at " .. x .. ", " .. y,
+        city = city,
         title = "Building name",
         discoverable = true,
         x = x,
         y = y,
         z = z
+    }
+
+    PhunSpawnPointSettingUI.OnOpenPanel(self.character, nil, data, {
+        mode = "CREATE"
     })
+
+    -- TODO: ask for detauks FIRST, then create.
+    -- should laso record owner
+    -- return CPhunSpawnSystem.instance:createAtSquare(square, self.character, {
+    --     key = PhunSpawn:getKey(square),
+    --     city = "City at " .. x .. ", " .. y,
+    --     title = "Building name",
+    --     discoverable = true,
+    --     x = x,
+    --     y = y,
+    --     z = z
+    -- })
 
 end
 

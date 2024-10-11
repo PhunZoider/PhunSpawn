@@ -3,6 +3,28 @@ if not isClient() then
 end
 local PhunSpawn = PhunSpawn
 
+Events.OnFillInventoryObjectContextMenu.Add(function(playerNum, context, items)
+
+    local item = nil
+    local playerObj = getSpecificPlayer(playerNum)
+    for i = 1, #items do
+        if not instanceof(items[i], "InventoryItem") then
+            item = items[i].items[1]
+        else
+            item = items[i]
+        end
+
+        if item then
+            local itemType = item:getType()
+            if itemType == "Escape Vent" then
+                context:addOptionOnTop("Place Vent", playerObj, function()
+                    getCell():setDrag(PhunSpawnCursor:new("phunspawn_01_4", true, playerObj), playerNum)
+                end)
+            end
+        end
+    end
+end)
+
 Events.OnReceiveGlobalModData.Add(function(key, data)
     if key == PhunSpawn.consts.spawnpoints then
         PhunSpawn.data.spawnPoints = data

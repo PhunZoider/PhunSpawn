@@ -5,26 +5,25 @@ module PhunSpawn
 		Base
 	}
 
-	item Vent
+	item Escape Vent
 	{
-        Weight = 1.0,
-	    DisplayName = RepellentPaint,
-        Type	=	Drainable,
-	    Icon = RepellentPaint,
-        DisplayCategory = Paint,
-        UseDelta	=	0.1000,
-        cantBeConsolided = TRUE
+                Weight = 1.0,
+                DisplayName = Escape Vent,
+                Type=Normal,
+	        Icon = PhunSpawn_Vent,
+                DisplayCategory = Furniture,
+                WorldObjectSprite=phunspawn_01_4
 	}
 
-	recipe Make Vent
+	recipe Make Escape Vent
 	{
-        keep [Recipe.GetItemTypes.Screwdriver],
-        Base.MetalBar = 10,
-        Base.SmallSheetMetal = 15,
-        CanBeDoneFromFloor:false,
-        Time:400,
-        SkillRequired:Electricity=4;MetalWelding=2,
-        Result: Moveables.phunspawn_01_4,
-        Category:Electrical,
+                keep [Recipe.GetItemTypes.Screwdriver],
+                Base.MetalBar = 10,
+                Base.SmallSheetMetal = 15,
+                CanBeDoneFromFloor:false,
+                Time:400,
+                SkillRequired:Electricity=4;MetalWelding=2,
+                Result: Moveables.phunspawn_01_4,
+                Category:Electrical,
 	}
 }
