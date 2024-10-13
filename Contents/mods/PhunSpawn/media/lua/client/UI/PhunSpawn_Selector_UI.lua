@@ -44,8 +44,8 @@ function PhunSpawnSelectorUI.OnOpenPanel(playerObj)
     local core = getCore()
     local FONT_SCALE = getTextManager():getFontHeight(UIFont.Small) / 14
     local core = getCore()
-    local width = 400 * FONT_SCALE
-    local height = 400 * FONT_SCALE
+    local width = 800 * FONT_SCALE
+    local height = 800 * FONT_SCALE
 
     local x = (core:getScreenWidth() - width) / 2
     local y = (core:getScreenHeight() - height) / 2
@@ -136,20 +136,22 @@ function PhunSpawnSelectorUI:rebuild(spawnpoints)
             if spawn.x and spawn.y then
                 city.x = city.x + spawn.x
                 city.y = city.y + spawn.y
-                centerPointTotal.x = centerPointTotal.x + spawn.x
-                centerPointTotal.y = centerPointTotal.y + spawn.y
-                cityCount = cityCount + 1
-                if boundsTotal.x == 0 or spawn.x < boundsTotal.x then
-                    boundsTotal.x = spawn.x
-                end
-                if boundsTotal.y == 0 or spawn.y < boundsTotal.y then
-                    boundsTotal.y = spawn.y
-                end
-                if boundsTotal.x2 == 0 or spawn.x > boundsTotal.x2 then
-                    boundsTotal.x2 = spawn.x
-                end
-                if boundsTotal.y2 == 0 or spawn.y > boundsTotal.y2 then
-                    boundsTotal.y2 = spawn.y
+                if spawn.city ~= "Hospital" then
+                    centerPointTotal.x = centerPointTotal.x + spawn.x
+                    centerPointTotal.y = centerPointTotal.y + spawn.y
+                    cityCount = cityCount + 1
+                    if boundsTotal.x == 0 or spawn.x < boundsTotal.x then
+                        boundsTotal.x = spawn.x
+                    end
+                    if boundsTotal.y == 0 or spawn.y < boundsTotal.y then
+                        boundsTotal.y = spawn.y
+                    end
+                    if boundsTotal.x2 == 0 or spawn.x > boundsTotal.x2 then
+                        boundsTotal.x2 = spawn.x
+                    end
+                    if boundsTotal.y2 == 0 or spawn.y > boundsTotal.y2 then
+                        boundsTotal.y2 = spawn.y
+                    end
                 end
             end
         end
@@ -394,8 +396,8 @@ function PhunSpawnSelectorUI:exitRoom(destinationTitle, destinationCity, destina
         return
     end
     local message = getText("IGUI_PhunSpawn_Confirm_Exit_Room", destinationTitle, destinationCity)
-    local w = 300
-    local h = 200
+    local w = 300 * FONT_SCALE
+    local h = 200 * FONT_SCALE
     local modal = ISModalDialog:new(getCore():getScreenWidth() / 2 - w / 2, getCore():getScreenHeight() / 2 - h / 2, w,
         h, message, true, self, function(self, button)
             if button.internal == "YES" then
@@ -479,17 +481,18 @@ function PhunSpawnSelectorUI:createChildren()
     self:addChild(self.closeButton)
 
     -- combo for city selection
-    self.city = ISComboBox:new(x, y, 240, 30, self, function()
+    self.city = ISComboBox:new(x, y, (self.closeButton.x / 2) - padding, 30, self, function()
         self:setSelectedCity(self.city.selected)
     end);
     self.city:initialise()
     self:addChild(self.city)
 
     -- combo for multiple locations
-    self.location = ISComboBox:new(self.city.x + self.city.width + padding, self.city.y, self.city.width,
-        self.city.height, self, function()
-            self:setSelectedLocation(self.location.selected)
-        end);
+    local l = self.city.x + self.city.width + padding
+    local w = self.closeButton.x - padding - l
+    self.location = ISComboBox:new(l, self.city.y, w, self.city.height, self, function()
+        self:setSelectedLocation(self.location.selected)
+    end);
     self.location:initialise()
     self:addChild(self.location)
 
@@ -535,7 +538,9 @@ function PhunSpawnSelectorUI:createChildren()
         self.showAll.changeOptionMethod = function()
             if self.showAll.selected[1] then
                 self:rebuild(PhunSpawn:getAllSpawnPoints())
+                self.miniMap.mapAPI:setBoolean("HideUnvisited", false)
             else
+                -- api:setBoolean("HideUnvisited", true)
                 local points = PhunSpawn:getSpawnPoints()
                 for k, v in pairs(points) do
                     if v.enabled ~= true then
