@@ -14,7 +14,11 @@ local function addToChunks(point)
     if not cachedChunked[ckey] then
         cachedChunked[ckey] = {}
     end
-    table.insert(cachedChunked[ckey], ckey)
+    table.insert(cachedChunked[ckey], {
+        x = point.x,
+        y = point.y,
+        z = point.z
+    })
 end
 
 function PhunSpawn:getPointsFromFile(points)

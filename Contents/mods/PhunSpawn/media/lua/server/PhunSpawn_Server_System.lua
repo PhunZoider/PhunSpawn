@@ -62,8 +62,13 @@ SGlobalObjectSystem.OnChunkLoaded = function(self, wx, wy)
         -- check that chunks spawn points are loaded
         print("Following spawn points need verification ", ckey)
         PhunTools:printTable(chunk)
-    else
-        print("No spawn points for chunk ", ckey)
+
+        for k, v in pairs(chunk) do
+            local sq = getCell():getGridSquare(v.x, v.y, v.z)
+            if sq then
+                SPhunSpawnSystem.instance:verifyOnLoadSquare(sq)
+            end
+        end
     end
 
     return oldOnChunkLoaded(self, wx, wy)
