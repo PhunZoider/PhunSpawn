@@ -7,3 +7,11 @@ option PhunSpawn.RespawnHospitalRooms
     page = PhunSpawn,
     translation = PhunSpawn_RespawnHospitalRooms
 }
+
+option PhunSpawn.AllowCraftingVents
+{
+    type = boolean,
+    default = false,
+    page = PhunSpawn,
+    translation = PhunSpawn_AllowCraftingVents
+}

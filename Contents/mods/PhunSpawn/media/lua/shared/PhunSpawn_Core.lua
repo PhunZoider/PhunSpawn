@@ -70,41 +70,130 @@ function PhunSpawn:xyzFromKey(key)
     }
 end
 
--- function PhunSpawn:getSpawnPoint(keyOrObj)
---     local key = self:getKey(keyOrObj)
---     return self.data.spawnPoints[key]
--- end
+function PhunSpawn:defaultPoints()
 
--- function PhunSpawn:isDiscovered(player, key)
---     local discoveries = self:getPlayerDiscoveries(player)
---     return discoveries[key] == true
--- end
+    local data = {}
 
--- function PhunSpawn:getPlayerDiscoveries(player)
---     local name = type(player) == "string" and player or player:getUsername()
---     if not self.system.data.discovered then
---         self.data.discovered = {}
---     end
---     if not self.system.data.discovered[name] then
---         self.system.data.discovered[name] = {}
---     end
---     return self.system.data.discovered[name]
--- end
+    if SandboxVars.PhunSpawn.RespawnHospitalRooms then
 
--- function PhunSpawn:registerDiscovery(player, key)
---     local name = type(player) == "string" and player or player:getUsername()
---     local discoveries = self:getPlayerDiscoveries(player)
---     discoveries[key] = true
---     if isClient() then
---         -- tell server about this discovery
---         sendServerCommand(self.name, self.commands.registerDiscovery, {
---             playername = name,
---             key = key
---         })
---     end
---     return discoveries
--- end
+        -- hard code hospital spawn points
+        local rhr = {{
+            x = 30000,
+            y = 30001,
+            z = 0
+        }, {
+            x = 30000,
+            y = 30061,
+            z = 0
+        }, {
+            x = 30000,
+            y = 30121,
+            z = 0
+        }, {
+            x = 30000,
+            y = 30181,
+            z = 0
+        }, {
+            x = 30000,
+            y = 30241,
+            z = 0
+        }, {
+            x = 30060,
+            y = 30001,
+            z = 0
+        }, {
+            x = 30060,
+            y = 30061,
+            z = 0
+        }, {
+            x = 30060,
+            y = 30121,
+            z = 0
+        }, {
+            x = 30060,
+            y = 30181,
+            z = 0
+        }, {
+            x = 30060,
+            y = 30241,
+            z = 0
+        }, {
+            x = 30120,
+            y = 30001,
+            z = 0
+        }, {
+            x = 30120,
+            y = 30061,
+            z = 0
+        }, {
+            x = 30120,
+            y = 30121,
+            z = 0
+        }, {
+            x = 30120,
+            y = 30181,
+            z = 0
+        }, {
+            x = 30120,
+            y = 30241,
+            z = 0
+        }, {
+            x = 30180,
+            y = 30061,
+            z = 0
+        }, {
+            x = 30180,
+            y = 30121,
+            z = 0
+        }, {
+            x = 30180,
+            y = 30181,
+            z = 0
+        }, {
+            x = 30180,
+            y = 30241,
+            z = 0
+        }, {
+            x = 30240,
+            y = 30001,
+            z = 0
+        }, {
+            x = 30240,
+            y = 30061,
+            z = 0
+        }, {
+            x = 30240,
+            y = 30121,
+            z = 0
+        }, {
+            x = 30240,
+            y = 30181,
+            z = 0
+        }, {
+            x = 30240,
+            y = 30241,
+            z = 0
+        }}
 
--- function PhunSpawn:removeDiscovery(player, key)
---     self:getPlayerDiscoveries(player)[key] = nil
--- end
+        for i, v in ipairs(rhr) do
+            local key = self:getKey(v)
+            data[key] = {
+                city = "Hospital",
+                title = "Room " .. i,
+                discoverable = false,
+                autoDiscovered = false,
+                canEnter = true,
+                description = "",
+                mod = "respawn-hospital-rooms2",
+                x = v.x,
+                y = v.y,
+                z = v.z
+            }
+        end
+
+    end
+
+    return data
+
+end
+

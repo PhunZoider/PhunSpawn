@@ -23,7 +23,6 @@ function PhunSpawnPoint:create(x, y, z, north, sprite)
     -- OnObjectAdded event will create the SRainBarrelGlobalObject on the server.
     -- This is only needed for singleplayer which doesn't trigger OnObjectAdded.
     triggerEvent("OnObjectAdded", self.javaObject)
-    -- ~ 	print("add a barrel at : " .. x .. "," .. y);
 end
 
 function PhunSpawnPoint:new(player, sprite, waterMax)

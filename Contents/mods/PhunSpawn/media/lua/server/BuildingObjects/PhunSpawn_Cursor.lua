@@ -4,11 +4,12 @@ local oldDestroyStuffFn = ISDestroyCursor.canDestroy
 function ISDestroyCursor:canDestroy(obj)
     local result = oldDestroyStuffFn(self, obj)
     if result then
-
         if obj and obj.getSprite then
-            local sn = obj:getSprite():getName()
-            if sn and luautils.stringStarts(sn, 'phunspawn_01') then
+            local point = CPhunSpawnSystem.instance:getSpawnPoint(obj)
+            if point then
+                -- if point.owner ~= self.character:getUsername() then
                 return false
+                -- end
             end
         end
 
@@ -22,40 +23,42 @@ PhunSpawnCursor = ISBuildingObject:derive("PhunSpawnCursor")
 function PhunSpawnCursor:create(x, y, z, north, sprite)
     local cell = getWorld():getCell()
     local square = cell:getGridSquare(x, y, z)
+    local chunkX, chunkY = math.floor(x / 10), math.floor(y / 10)
+    local cellX, cellY = math.floor(x / 300), math.floor(y / 300)
 
-    local city = "City at " .. x .. ", " .. y
-    if PhunZones then
-        local zone = PhunZones:getLocation(x, y)
-        if zone then
-            city = zone.title
-        end
-    end
+    local city = CPhunSpawnSystem.instance:getDefaultCityName(x, y)
+    local title = chunkX .. ", " .. chunkY
+    local mod = nil
 
     local data = {
         key = PhunSpawn:getKey(square),
         city = city,
-        title = "Building name",
+        title = title,
         discoverable = true,
+        owner = self.character:getUsername(),
         x = x,
         y = y,
         z = z
     }
 
-    PhunSpawnPointSettingUI.OnOpenPanel(self.character, nil, data, {
-        mode = "CREATE"
-    })
+    if isAdmin() then
+        PhunSpawnPointSettingUI.OnOpenPanel(self.character, nil, data, {
+            mode = "CREATE"
+        })
+    else
 
-    -- TODO: ask for detauks FIRST, then create.
-    -- should laso record owner
-    -- return CPhunSpawnSystem.instance:createAtSquare(square, self.character, {
-    --     key = PhunSpawn:getKey(square),
-    --     city = "City at " .. x .. ", " .. y,
-    --     title = "Building name",
-    --     discoverable = true,
-    --     x = x,
-    --     y = y,
-    --     z = z
-    -- })
+        local modal = ISTextBox:new(0, 0, 280, 180, getText("IGUI_PhunSpawn_BuildingName"), data.title, nil,
+            function(target, button, obj)
+                if button.internal == "OK" then
+                    data.title = button.parent.entry:getText() or data.title
+                    data.description = getText("IGUI_PhunSpawn_PlacedBy", data.owner)
+                    CPhunSpawnSystem.instance:createFromData(self.character, data)
+                end
+            end, self.character:getPlayerNum())
+        modal:initialise()
+        modal:addToUIManager()
+
+    end
 
 end
 

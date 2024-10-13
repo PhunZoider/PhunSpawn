@@ -2,87 +2,104 @@ if not isServer() then
     return
 end
 
-local PhunSpawn = PhunSpawn
+local cached = nil
+local cachedAll = nil
+local cachedChunked = nil
 
--- local getSpawnPointsFromFile = function()
---     local file = PhunSpawn.consts.spawnpoints .. ".lua"
---     local results = PhunTools:loadTable(file)
---     return results
--- end
+local function addToChunks(point)
+    if cachedChunked == nil then
+        cachedChunked = {}
+    end
+    local ckey = math.floor(point.x / 10) .. "_" .. math.floor(point.y / 10)
+    if not cachedChunked[ckey] then
+        cachedChunked[ckey] = {}
+    end
+    table.insert(cachedChunked[ckey], ckey)
+end
 
--- function PhunSpawn:getSpawnPoints(optionalAll)
---     if optionalAll then
---         if not self.data.allSpawnPoints then
---             local points = {}
---             local chunked = {}
---             local data = getSpawnPointsFromFile()
---             for _, v in ipairs(data) do
---                 local key = self:getKey(v)
---                 v.key = key
---                 local ckey = math.floor(v.x / 10) .. "_" .. math.floor(v.y / 10)
---                 if not chunked[ckey] then
---                     chunked[ckey] = {}
---                 end
---                 table.insert(chunked[ckey], v)
---                 points[key] = v
---             end
---             self.data.chunkedSpawnPoints = chunked
---             self.data.allSpawnPoints = points
---         end
+function PhunSpawn:getPointsFromFile(points)
+    points = points or {}
+    local file = self.consts.spawnpoints .. ".lua"
+    local fromFile = PhunTools:loadTable(file)
 
---         return self.data.allSpawnPoints
---     else
---         if not self.data.spawnPoints then
---             local data = self:getSpawnPoints(true)
---             local points = {}
---             for key, v in pairs(data) do
---                 local enabled = (v.mod == nil or v.mod == "") or getActivatedMods():contains(v.mod)
---                 if enabled and v.enabled ~= true then
---                     points[key] = v
---                 end
---             end
---             self.data.spawnPoints = points
---             ModData.add(self.consts.spawnpoints, points)
---         end
---         return self.data.spawnPoints
---     end
--- end
+    for _, v in ipairs(fromFile) do
+        local key = v.key or self:getKey(v)
+        if v.direction then
+            v.direction = nil
+        end
+        points[key] = v
+    end
+    return points
+end
 
--- function PhunSpawn:upsertSpawnPoint(data)
---     print("upsertSpawnPoint")
---     PhunTools:printTable(data)
---     local points = self:getSpawnPoints(true)
---     local key = self:getKey(data)
---     data.key = key
---     points[key] = data
---     self.data.allSpawnPoints = points
---     PhunTools:saveTable(self.consts.spawnpoints .. ".lua", points)
---     self:loadSpawnPoints()
--- end
+function PhunSpawn:getChunk(ckey)
+    if cachedAll == nil then
+        self:getAllSpawnPoints(true)
+    end
+    return cachedChunked[ckey]
+end
 
--- function PhunSpawn:deleteSpawnPoint(key)
---     local points = self:getSpawnPoints(true)
---     points[key] = nil
---     self.data.allSpawnPoints = points
---     PhunTools:saveTable(self.consts.spawnpoints .. ".lua", points)
---     print("Deleted spawn point: " .. key)
---     PhunTools:printTable(self.data.discovered)
---     for playerName, discoveries in pairs(self.data.discovered) do
---         if discoveries[key] then
---             discoveries[key] = nil
---         end
---     end
---     print("Deleted spawn point:NOW " .. key)
---     PhunTools:printTable(self.data.discovered)
+function PhunSpawn:getAllSpawnPoints(reload)
 
---     self:loadSpawnPoints()
--- end
+    if cachedAll ~= nil and not reload then
+        return cachedAll
+    end
 
--- function PhunSpawn:loadSpawnPoints()
---     self.data.spawnPoints = nil
---     self.data.allSpawnPoints = nil
---     local points = self:getSpawnPoints()
---     ModData.add(self.consts.spawnpoints, points)
---     ModData.transmit(self.consts.spawnpoints)
--- end
+    local points = {}
 
+    -- add all the hard coded points
+    local defaults = self:defaultPoints()
+    for k, v in pairs(defaults) do
+        v.default = true
+        points[k] = v
+    end
+
+    self:getPointsFromFile(points)
+
+    cachedAll = points
+    return points
+
+end
+
+function PhunSpawn:getSpawnPoints(reload)
+
+    if cached ~= nil and not reload then
+        return cached
+    end
+
+    -- load all points
+    local data = self:getAllSpawnPoints(reload)
+
+    print("All spawn points:")
+    PhunTools:printTable(data)
+
+    local points = {}
+    local forModData = {}
+
+    -- filter out the ones that are not enabled or require mods that are not enabled
+    for key, v in pairs(data) do
+        local enabled = (v.mod == nil or v.mod == "") or getActivatedMods():contains(v.mod)
+        if enabled and v.enabled ~= true then
+            points[key] = v
+            addToChunks(v) -- add to chunk map
+            if v.default ~= true then
+                -- this isn't a harccoded point
+                -- so add to mod data for transmission to clients
+                forModData[key] = v
+            end
+            v.default = nil
+        end
+    end
+
+    ModData.add(self.consts.spawnpoints, forModData)
+
+    cached = points
+    return points
+end
+
+function OnEat_VentClue(food, player, percent)
+    print("OnEat_VentClue")
+    sendServerCommand(player, "PhunSpawn", "OnEat_VentClue", {
+        name = player:getUsername()
+    })
+end

@@ -28,7 +28,6 @@ function spawnPoint:open(playerObj)
 end
 
 function spawnPoint:OnLuaObjectUpdated(luaObject)
-    print("OnLuaObjectUpdated")
     -- luaObject fields were updated with new values from the server
     self:noise('OnLuaObjectUpdated')
 end

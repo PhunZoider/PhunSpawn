@@ -7,12 +7,22 @@ module PhunSpawn
 
 	item Escape Vent
 	{
-                Weight = 1.0,
-                DisplayName = Escape Vent,
-                Type=Normal,
+            Weight = 1.0,
+            DisplayName = Escape Vent,
+            Type=Normal,
 	        Icon = PhunSpawn_Vent,
-                DisplayCategory = Furniture,
-                WorldObjectSprite=phunspawn_01_4
+            DisplayCategory = Furniture,
+            WorldObjectSprite=phunspawn_01_4
+	}
+
+    item Vent Clue
+	{
+
+        Weight = 1.0,
+        Type=Normal,
+        DisplayName = Clue,
+        Icon = PhunSpawn_VentClue,
+
 	}
 
 	recipe Make Escape Vent

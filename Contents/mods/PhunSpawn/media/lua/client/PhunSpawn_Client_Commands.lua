@@ -5,8 +5,14 @@ end
 local PS = PhunSpawn
 local Commands = {}
 
-Commands.allSpawnPoints = function(player)
-    CPhunSpawnSystem.instance.data.allSpawnPoints = player
+Commands[PS.commands.getAllSpawns] = function(player, data)
+
+    local d = PS:getHardCodedPoints()
+    for i = 1, #data do
+        table.insert(d, data[i])
+    end
+
+    CPhunSpawnSystem.instance.data.allSpawnPoints = data
 end
 
 Commands[PS.commands.getMyDiscoveries] = function(player, data)

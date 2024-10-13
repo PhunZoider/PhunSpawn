@@ -9,10 +9,12 @@ local spawnSystem = CPhunSpawnSystem
 function spawnSystem:new()
     local o = CGlobalObjectSystem.new(self, "phunspawn")
     o.data = {
-        spawnPoints = ModData.getOrCreate(PS.consts.spawnpoints),
+        spawnPoints = nil, -- ModData.getOrCreate(PS.consts.spawnpoints),
         allSpawnPoints = nil,
-        discovered = ModData.getOrCreate(PS.consts.discoveries)
+        discovered = nil, -- ModData.getOrCreate(PS.consts.discoveries)
+        learned = ModData.getOrCreate("PhunSpawn_Learned")
     }
+    print("REQUESTING SPAWNPOINTS")
     ModData.request(PS.consts.spawnpoints)
     sendClientCommand(PS.name, PS.commands.getMyDiscoveries, {})
     return o
@@ -49,7 +51,7 @@ function spawnSystem:discoverObject(obj, player)
                 if data.autoDiscovered ~= true and self:isDiscovered(player, data.key) then
                     player:Say(getText("IGUI_PhunSpawn_AlreadyActivated"))
                 else
-                    PS:registerDiscovery(player, data.key)
+                    self:registerDiscovery(player, data.key)
                     getSoundManager():PlaySound("PhunSpawn_Activate", false, 0):setVolume(0.50);
                     player:Say(getText("IGUI_PhunSpawn_Activating"))
                 end
@@ -67,6 +69,14 @@ function spawnSystem:registerDiscovery(player, key)
         playername = name,
         key = key
     })
+
+    -- remove related symbol on map if its still about
+    local unlearned = ModData.getOrCreate("PhunSpawn_Learned")
+    if unlearned[key] then
+        PS:removeSymbol(unlearned[key].x, unlearned[key].y)
+        unlearned[key] = nil
+    end
+
     return discoveries
 end
 
@@ -101,6 +111,18 @@ function spawnSystem:deleteObject(obj, player)
 
 end
 
+function spawnSystem:createFromData(player, data)
+    local sq = getSquare(data.x, data.y, data.z)
+    if sq then
+        self:createAtSquare(sq, player, data)
+        self:registerDiscovery(player, data.key)
+        local item = player:getInventory():getFirstTypeRecurse("Escape Vent")
+        if item then
+            player:getInventory():DoRemoveItem(item)
+        end
+    end
+end
+
 function spawnSystem:upsertObject(obj, data)
 
     obj:getModData().PhunSpawn = data
@@ -113,7 +135,30 @@ end
 
 function spawnSystem:getSpawnPoint(keyOrObj)
     local key = PS:getKey(keyOrObj)
-    return self.data.spawnPoints[key]
+    return PS:getSpawnPoints()[key] or nil
+end
+
+function spawnSystem:getDefaultCityName(x, y)
+    if PhunZones and PhunZones.getLocation then
+        local zone = PhunZones:getLocation(x, y)
+        if zone then
+            return zone.title
+        end
+    end
+
+    local points = PS:getSpawnPoints()
+    local distance = 100
+    local cellX, cellY = math.floor(x / 300), math.floor(y / 300)
+    local city = cellX .. ", " .. cellY
+    for k, v in pairs(points) do
+        local dist = IsoUtils.DistanceTo(v.x, v.y, x, y)
+        if dist < distance then
+            distance = dist
+            city = v.city
+        end
+    end
+    return city or (cellX .. ", " .. cellY)
+
 end
 
 CGlobalObjectSystem.RegisterSystemClass(spawnSystem)

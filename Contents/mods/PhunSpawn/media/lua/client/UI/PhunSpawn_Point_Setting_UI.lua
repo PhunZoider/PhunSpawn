@@ -22,17 +22,12 @@ function UI.OnOpenPanel(playerObj, obj, data, options)
         data = {}
     end
 
+    if not data.city and data.x and data.y then
+        data.city = CPhunSpawnSystem.instance:getDefaultCityName(data.x, data.y)
+    end
+
     options = options or {}
     local mode = options.mode or "EDIT"
-
-    if not data.city then
-        if PhunZones then
-            local zone = PhunZones:getLocation(obj:getX(), obj:getY())
-            if zone then
-                data.city = zone.title
-            end
-        end
-    end
 
     local square = obj and obj.getSquare and obj:getSquare() or nil
 
@@ -79,34 +74,42 @@ end
 function UI:save()
     self:isValid()
     if self.validData then
+
+        local x, y, z = self.data.x, self.data.y, self.data.z
+        local square = getSquare(x, y, z)
+
         if self.mode == "CREATE" then
-            local x, y, z = self.data.x, self.data.y, self.data.z
-            local square = getSquare(x, y, z)
             local owner = self.character and self.character:getUsername() or nil
-            CPhunSpawnSystem.instance:createAtSquare(square, self.character, {
+            local finalData = {
                 key = PhunSpawn:getKey(square),
-                city = "City at " .. x .. ", " .. y,
-                title = "Building name",
-                discoverable = true,
+                city = self.validData.city or getText("IGUI_PhunSpawn_City_At_XY", x, y),
+                title = self.validData.title or getText("IGUI_PhunSpawn_DefaultBuilding"),
+                discoverable = self.validData.discoverable == true,
+                autoDiscovered = self.validData.autoDiscovered == true,
+                description = self.validData.description or "",
+                mod = self.validData.mod or "",
+                owner = owner,
+                x = x,
+                y = y,
+                z = z
+            }
+            CPhunSpawnSystem.instance:createFromData(self.character, finalData)
+            self:close()
+        elseif self.obj then
+            local owner = self.data.owner or (self.character and self.character:getUsername()) or nil
+            CPhunSpawnSystem.instance:upsertObject(self.obj, {
+                key = PhunSpawn:getKey(square),
+                city = self.validData.city or getText("IGUI_PhunSpawn_City_At_XY", x, y),
+                title = self.validData.title or getText("IGUI_PhunSpawn_DefaultBuilding"),
+                discoverable = self.validData.discoverable == true,
+                autoDiscovered = self.validData.autoDiscovered == true,
+                description = self.validData.description or "",
+                mod = self.validData.mod or "",
                 owner = owner,
                 x = x,
                 y = y,
                 z = z
             })
-            local item = self.player:getInventory():getFirstTypeRecurse("Escape Vent")
-            if item then
-                self.player:getInventory():DoRemoveItem(item)
-            end
-            self:close()
-        elseif obj then
-            local owner = self.data.owner or (self.character and self.character:getUsername()) or nil
-            local x, y, z = self.data.x, self.data.y, self.data.z
-            local square = getSquare(x, y, z)
-            self.validData.owner = owner
-            self.validData.x = x
-            self.validData.y = y
-            self.validData.z = z
-            CPhunSpawnSystem.instance:upsertObject(self.obj, self.validData)
             self:close()
         end
 
@@ -284,7 +287,7 @@ function UI:isValid()
     local title = self.title:getText()
     local mod = self.mod and self.mod:getText() or ""
     local description = self.description:getText()
-    local discoverable = self.discoverable and self.discoverable:isSelected(1) or true
+    local discoverable = self.discoverable and self.discoverable:isSelected(1) or false
     local autoDiscovered = self.autoDiscovered and self.autoDiscovered:isSelected(1)
     -- local x, y, z = self.square:getX(), self.square:getY(), self.square:getZ()
     local x, y, z = self.data.x, self.data.y, self.data.z
@@ -398,6 +401,7 @@ function UI:new(x, y, width, height, player, data, square, obj, options)
     o.anchorRight = true
     o.anchorBottom = true
     o.player = player
+    o.character = player
     o.pIndex = player:getPlayerNum()
     o.zOffsetLargeFont = 25;
     o.zOffsetMediumFont = 20;

@@ -13,24 +13,28 @@ local HEADER_HGT = FONT_HGT_MEDIUM + 2 * 2
 PhunSpawnSelectorUI = ISPanelJoypad:derive("PhunSpawnSelectorUI");
 PhunSpawnSelectorUI.instances = {}
 
+local csystem = nil
+
 function PhunSpawnSelectorUI.OnOpenPanel(playerObj)
 
-    if isAdmin() and PhunSpawn.data.allSpawnPoints == nil then
-        sendClientCommand(playerObj, PhunSpawn.name, PhunSpawn.commands.getAllSpawns, {})
+    if csystem == nil then
+        csystem = CPhunSpawnSystem.instance
     end
 
+    -- if isAdmin() and csystem.data.allSpawnPoints == nil then
+    --     sendClientCommand(playerObj, PhunSpawn.name, PhunSpawn.commands.getAllSpawns, {})
+    -- end
+
     local pNum = playerObj:getPlayerNum()
-    local ps = PhunSpawn
-    local data = ps.data.spawnPoints or {}
+
+    local data = PhunSpawn:getSpawnPoints()
 
     if PhunSpawnSelectorUI.instances[pNum] then
         -- there is already an instance of this panel for this player
         if not PhunSpawnSelectorUI.instances[pNum]:isVisible() then
             PhunSpawnSelectorUI.instances[pNum]:addToUIManager();
             PhunSpawnSelectorUI.instances[pNum]:setVisible(true);
-            PhunSpawnSelectorUI.instances[pNum].spawns = data
-            PhunSpawnSelectorUI.instances[pNum]:rebuild()
-            PhunSpawnSelectorUI.instances[pNum]:refreshCitiesCombo()
+            PhunSpawnSelectorUI.instances[pNum]:rebuild(data)
             PhunSpawnSelectorUI.instances[pNum]:ensureVisible()
             return
         end
@@ -50,21 +54,21 @@ function PhunSpawnSelectorUI.OnOpenPanel(playerObj)
     PhunSpawnSelectorUI.instances[pIndex] = PhunSpawnSelectorUI:new(x, y, width, height, playerObj);
     PhunSpawnSelectorUI.instances[pIndex]:initialise();
     PhunSpawnSelectorUI.instances[pIndex]:addToUIManager();
-    PhunSpawnSelectorUI.instances[pNum].spawns = data
-    PhunSpawnSelectorUI.instances[pNum]:rebuild()
-    PhunSpawnSelectorUI.instances[pNum]:refreshCitiesCombo()
+    PhunSpawnSelectorUI.instances[pNum]:rebuild(data)
     PhunSpawnSelectorUI.instances[pNum]:ensureVisible()
     return PhunSpawnSelectorUI.instances[pIndex];
 
 end
 
 function PhunSpawnSelectorUI:rebuild(spawnpoints)
-
+    getSoundManager():PlaySound("PhunSpawn_Enter", false, 0):setVolume(0.90);
     self.city:clear()
 
     local cityKeys = {}
 
-    local data = spawnpoints or self.spawns or {}
+    self.spawns = spawnpoints or self.spawns or {}
+
+    local data = self.spawns
 
     local cities = {}
     local locations = {}
@@ -80,7 +84,7 @@ function PhunSpawnSelectorUI:rebuild(spawnpoints)
     }
     local cityCount = 0
 
-    local discoveries = CPhunSpawnSystem.instance:getPlayerDiscoveries(self.player)
+    local discoveries = csystem:getPlayerDiscoveries(self.player)
 
     for k, spawn in pairs(data) do
 
@@ -89,14 +93,20 @@ function PhunSpawnSelectorUI:rebuild(spawnpoints)
             enable = discoveries[k] == true
         end
 
-        if enable then
+        if enable or (isAdmin() and self.showAll.selected[1] == true) then
 
-            if not cities[spawn.city] then
+            local cityName = spawn.city or nil
+            if cityName == nil then
+                print("ERROR: PhunSpawn: No city name for spawn point ", k)
+                cityName = csystem:getDefaultCityName(spawn.x, spawn.y) or "Unknown"
+            end
 
-                cities[spawn.city] = {
-                    title = spawn.city,
-                    titleWidth = getTextManager():MeasureStringX(UIFont.Small, spawn.city),
-                    titleHeight = getTextManager():MeasureStringY(UIFont.Small, spawn.city),
+            if not cities[cityName] then
+
+                cities[cityName] = {
+                    title = cityName,
+                    titleWidth = getTextManager():MeasureStringX(UIFont.Small, cityName),
+                    titleHeight = getTextManager():MeasureStringY(UIFont.Small, cityName),
                     titleLeft = 0,
                     titleTop = 0,
                     x = 0,
@@ -104,10 +114,10 @@ function PhunSpawnSelectorUI:rebuild(spawnpoints)
                     locations = {}
                 }
 
-                table.insert(cityKeys, spawn.city)
+                table.insert(cityKeys, cityName)
             end
 
-            table.insert(cities[spawn.city].locations, k)
+            table.insert(cities[cityName].locations, k)
 
             local x = 0
             local y = 0
@@ -161,7 +171,7 @@ function PhunSpawnSelectorUI:rebuild(spawnpoints)
     self.initialBounds = boundsTotal
     local api = self.miniMap.mapAPI
     api:centerOn(centerPointTotal.x / cityCount, centerPointTotal.y / cityCount)
-
+    self:refreshCitiesCombo()
 end
 
 function PhunSpawnSelectorUI:refreshCitiesCombo()
@@ -300,107 +310,96 @@ function PhunSpawnSelectorUI:isValid()
     return isValid
 end
 
+function PhunSpawnSelectorUI:doTele(destinationX, destinationY, destinationZ)
+    local player = self.player
+
+    if SandboxVars.PhunSpawn.RespawnHospitalRooms == true then
+        -- do RHR shut down items
+        if player:getModData().RHR then
+            RHR_ExitRoom(player)
+        end
+    end
+    player:setX(destinationX)
+    player:setY(destinationY)
+    player:setZ(destinationZ)
+    player:setLx(destinationX)
+    player:setLy(destinationY)
+    player:setLz(destinationZ)
+
+    local retries = 100
+    local playerPorting
+    playerPorting = function()
+        -- wait for square to load
+        local square = player:getCurrentSquare()
+        if square == nil then
+            return
+        end
+        retries = retries - 1
+        if retries <= 0 then
+            player:Say(getText("IGUI_PhunSpawn_Failed_To_Find_Free_Square"))
+            Events.OnPlayerUpdate.Remove(playerPorting)
+            return
+        end
+
+        local free = AdjacentFreeTileFinder.FindClosest(square, player)
+        if free then
+            player:setX(free:getX())
+            player:setY(free:getY())
+            player:setZ(free:getZ())
+            player:setLx(free:getX())
+            player:setLy(free:getY())
+            player:setLz(free:getZ())
+            Events.OnPlayerUpdate.Remove(playerPorting)
+        end
+
+        local room = square:getRoom()
+        if room then
+            local squares = room:getSquares()
+            -- remove all zeds from room
+            for itSq = 0, squares:size() - 1, 1 do
+                local squareToCheck = squares:get(itSq)
+                for i = squareToCheck:getMovingObjects():size(), 1, -1 do
+                    local testZed = squareToCheck:getMovingObjects():get(i - 1)
+                    if instanceof(testZed, "IsoZombie") then
+                        local onlineID = testZed:getOnlineID()
+                        sendClientCommand(PhunSpawn.name, PhunSpawn.commands.killZombie, {
+                            id = onlineID
+                        })
+                        testZed:removeFromWorld()
+                        testZed:removeFromSquare()
+                    end
+                end
+            end
+        else
+            -- outside?
+        end
+
+    end
+    Events.OnPlayerUpdate.Add(playerPorting)
+end
+
 function PhunSpawnSelectorUI:exitRoom(destinationTitle, destinationCity, destinationX, destinationY, destinationZ)
 
     print("exitRoom for ", destinationTitle, " in ", destinationCity, "x ", destinationX, ", y ", destinationY, ", z ",
         destinationZ)
 
+    local md = self.player:getModData()
+    local message = ""
+    if SandboxVars.PhunSpawn.RespawnHospitalRooms and md and md.RHR then
+        message = getText("IGUI_PhunSpawn_Confirm_Exit_Room", destinationTitle, destinationCity)
+    else
+        -- don't prompt if not in starting bit
+        self:doTele(destinationX, destinationY, destinationZ)
+        self:close()
+        return
+    end
     local message = getText("IGUI_PhunSpawn_Confirm_Exit_Room", destinationTitle, destinationCity)
     local w = 300
     local h = 200
     local modal = ISModalDialog:new(getCore():getScreenWidth() / 2 - w / 2, getCore():getScreenHeight() / 2 - h / 2, w,
         h, message, true, self, function(self, button)
             if button.internal == "YES" then
-
-                local player = self.player
-
-                player:setX(destinationX)
-                player:setY(destinationY)
-                player:setZ(destinationZ)
-                player:setLx(destinationX)
-                player:setLy(destinationY)
-                player:setLz(destinationZ)
-
-                local retries = 100
-                local playerPorting
-                playerPorting = function()
-                    -- wait for square to load
-                    local square = player:getCurrentSquare()
-                    if square == nil then
-                        return
-                    end
-                    retries = retries - 1
-                    if retries <= 0 then
-                        player:Say(getText("IGUI_PhunSpawn_Failed_To_Find_Free_Square"))
-                        Events.OnPlayerUpdate.Remove(playerPorting)
-                        return
-                    end
-
-                    local free = AdjacentFreeTileFinder.FindClosest(square, player)
-                    if free then
-                        player:setX(free:getX())
-                        player:setY(free:getY())
-                        player:setZ(free:getZ())
-                        player:setLx(free:getX())
-                        player:setLy(free:getY())
-                        player:setLz(free:getZ())
-                        Events.OnPlayerUpdate.Remove(playerPorting)
-                    end
-
-                    local room = square:getRoom()
-                    if room then
-                        local squares = room:getSquares()
-                        -- remove all zeds from room
-                        for itSq = 0, squares:size() - 1, 1 do
-                            local squareToCheck = squares:get(itSq)
-                            for i = squareToCheck:getMovingObjects():size(), 1, -1 do
-                                local testZed = squareToCheck:getMovingObjects():get(i - 1)
-                                if instanceof(testZed, "IsoZombie") then
-                                    local onlineID = testZed:getOnlineID()
-                                    sendClientCommand(PhunSpawn.name, PhunSpawn.commands.killZombie, {
-                                        id = onlineID
-                                    })
-                                    testZed:removeFromWorld()
-                                    testZed:removeFromSquare()
-                                end
-                            end
-                        end
-                    else
-                        -- outside?
-                    end
-                    -- if room then
-
-                    --     local squares = room:getSquares()
-                    --     -- move to a random free square in the room
-                    --     local free = room:getRandomFreeSquare()
-                    --     if free then
-                    --         player:setX(free:getX())
-                    --         player:setY(free:getY())
-                    --         player:setZ(free:getZ())
-                    --         player:setLx(free:getX())
-                    --         player:setLy(free:getY())
-                    --         player:setLz(free:getZ())
-                    --         Events.OnPlayerUpdate.Remove(playerPorting)
-                    --     end
-
-                    --     -- remove all zeds from room
-                    --     for itSq = 0, squares:size() - 1, 1 do
-                    --         local squareToCheck = squares:get(itSq)
-                    --         for i = squareToCheck:getMovingObjects():size(), 1, -1 do
-                    --             local testZed = squareToCheck:getMovingObjects():get(i - 1)
-                    --             if instanceof(testZed, "IsoZombie") then
-                    --                 local onlineID = testZed:getOnlineID()
-                    --                 sendClientCommand(PhunSpawn.name, PhunSpawn.commands.killZombie, {
-                    --                     id = onlineID
-                    --                 })
-                    --                 testZed:removeFromWorld()
-                    --                 testZed:removeFromSquare()
-                    --             end
-                    --         end
-                    --     end
-                    -- end
-                end
-                Events.OnPlayerUpdate.Add(playerPorting)
+                self:doTele(destinationX, destinationY, destinationZ)
             end
             self:close()
         end, nil);
@@ -535,12 +534,18 @@ function PhunSpawnSelectorUI:createChildren()
         self.showAll:addOption("Show all");
         self.showAll.changeOptionMethod = function()
             if self.showAll.selected[1] then
-                self:rebuild(PhunSpawn.data.allSpawnPoints)
+                self:rebuild(PhunSpawn:getAllSpawnPoints())
             else
-                self:rebuild(PhunSpawn.data.spawnPoints)
+                local points = PhunSpawn:getSpawnPoints()
+                for k, v in pairs(points) do
+                    if v.enabled ~= true then
+                        points[k] = v
+                    end
+                end
+                self:rebuild(points)
             end
         end
-        self.showAll:setSelected(1, "Show all")
+        self.showAll:setSelected(1, false)
         self:addChild(self.showAll);
 
         x = x + 100

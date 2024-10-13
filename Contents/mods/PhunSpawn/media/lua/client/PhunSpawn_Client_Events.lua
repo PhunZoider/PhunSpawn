@@ -25,10 +25,49 @@ Events.OnFillInventoryObjectContextMenu.Add(function(playerNum, context, items)
     end
 end)
 
+local sh = nil
 Events.OnReceiveGlobalModData.Add(function(key, data)
+
     if key == PhunSpawn.consts.spawnpoints then
-        PhunSpawn.data.spawnPoints = data
         ModData.add(PhunSpawn.consts.spawnpoints, data)
+        PhunSpawn:getSpawnPoints(true)
+
+    elseif key == PhunSpawn.consts.discoveries then
+        CPhunSpawnSystem.instance.data.discovered = data
+        ModData.add(PhunSpawn.consts.discoveries, data)
+    end
+
+    if sh == nil then
+        sh = SafeHouse.canBeSafehouse
+        SafeHouse.canBeSafehouse = function(square, player)
+            local md = player:getModData()
+            if SandboxVars.PhunSpawn.RespawnHospitalRooms and md and md.RHR then
+                return getText("IGUI_PhunSpawn_NoSafehouseHere")
+            end
+
+            -- is this square in a building with an autoDiscover spawn point?
+            local building = square:getBuilding()
+            if building then
+                local def = building:getDef()
+                local points = PhunSpawn:getSpawnPoints()
+                for k, point in pairs(points) do
+                    if point.autoDiscovered then
+                        if point.x >= def:getX() and point.x <= def:getX2() then
+                            if point.y >= def:getY() and point.y <= def:getY2() then
+                                return getText("IGUI_PhunSpawn_NoSafehouseHere")
+                            end
+                        end
+                    end
+                end
+            end
+
+            -- are we outside of map bounds?
+            if square:getX() > 19800 and square:getY() > 12000 then
+                return getText("IGUI_PhunSpawn_NoSafehouseHere")
+            end
+
+            return sh(square, player)
+        end
     end
 
 end)
@@ -52,7 +91,7 @@ local function contextMenu(playerIndex, context, worldObjects, test)
             if data.discoverable ~= false then
 
                 local option = context:addOptionOnTop(getText("IGUI_PhunSpawn_Activate"), worldObjects, function()
-                    PhunSpawn:registerDiscovery(player, data.key)
+                    CPhunSpawnSystem.instance:registerDiscovery(player, data.key)
                     getSoundManager():PlaySound("PhunSpawn_Activate", false, 0):setVolume(0.50);
                 end, playerIndex)
 
@@ -91,6 +130,7 @@ local function contextMenu(playerIndex, context, worldObjects, test)
             PhunSpawnSelectorUI.OnOpenPanel(player)
         end)
     end
+
 end
 
 Events.OnFillWorldObjectContextMenu.Add(contextMenu)
@@ -106,7 +146,18 @@ local function OnKeyPressed(key)
         end
         local sq = player:getSquare()
         if sq then
-            CPhunSpawnSystem.instance:discoverSquare(sq, player)
+            local obj = CPhunSpawnSystem.instance:getIsoObjectOnSquare(sq)
+            if obj then
+                CPhunSpawnSystem.instance:discoverObject(obj, player)
+                local md = obj:getModData().PhunSpawn
+                local pd = player:getModData()
+                if md and md.canEnter then
+                    PhunSpawnSelectorUI.OnOpenPanel(player)
+                end
+            else
+                CPhunSpawnSystem.instance:discoverSquare(sq, player)
+            end
+
         end
     end
 end
@@ -120,9 +171,35 @@ end
 Events.OnPlayerUpdate.Remove(OnPlayerInit)
 
 if Events["OnHospitalRoomTeleport"] then
-    Events.OnHospitalRoomTeleport.Add(function(player)
-        player:setHaloNote("Your head feels fuzzy", 255, 255, 0, 300);
-        player:setHaloNote("Where are you?", 255, 255, 0, 300);
-        player:Say("Hello? Is anyone there?");
-    end)
+    if SandboxVars.PhunSpawn.RespawnHospitalRooms == true then
+        Events.OnHospitalRoomTeleport.Add(function(player)
+
+            local maxHalo1 = 12 -- 1-6
+            local maxSay = 1 -- 1
+
+            local halo1 = ZombRand(maxHalo1) + 1
+            local halo2
+            repeat
+                halo2 = ZombRand(maxHalo1) + 1
+            until halo2 ~= halo1
+
+            local say = ZombRand(maxSay) + 1
+
+            player:setHaloNote(getText("IGUI_PhunSpawn_NewSpawnHalo" .. halo1), 255, 255, 0, 300);
+            player:setHaloNote(getText("IGUI_PhunSpawn_NewSpawnHalo" .. halo2), 255, 255, 0, 300);
+            player:setHaloNote(getText("IGUI_PhunSpawn_NewSpawnWhereAmI"), 255, 255, 0, 300);
+            player:Say(getText("IGUI_PhunSpawn_NewSpawnSay" .. say));
+        end)
+    end
 end
+
+Events.OnInitGlobalModData.Add(function()
+
+    local canCraft = SandboxVars.PhunSpawn.AllowCraftingVents == true
+    local manager = getScriptManager()
+    local recipe = manager:getRecipe("PhunSpawn.Escape Vent")
+    if recipe then
+        recipe:setIsHidden(not canCraft)
+    end
+
+end)

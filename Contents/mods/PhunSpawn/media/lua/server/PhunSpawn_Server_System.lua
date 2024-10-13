@@ -10,9 +10,9 @@ SPhunSpawnSystem = SGlobalObjectSystem:derive("SPhunSpawnSystem")
 function SPhunSpawnSystem:new()
     local o = SGlobalObjectSystem.new(self, "phunspawn")
     o.data = {
-        spawnPoints = ModData.getOrCreate(PS.consts.spawnpoints),
+        spawnPoints = nil, -- ModData.getOrCreate(PS.consts.spawnpoints),
         allSpawnPoints = nil,
-        discovered = ModData.getOrCreate(PS.consts.discoveries),
+        discovered = nil, -- ModData.getOrCreate(PS.consts.discoveries),
         chunkedSpawnPoints = {}
     }
     o:loadSpawnPoints()
@@ -28,13 +28,11 @@ local function isWest(square)
 end
 
 function SPhunSpawnSystem.addToWorld(square, data, direction)
-    print("Add to world")
     direction = direction or "south"
     PS:getKey(square)
 
     local isoObject
 
-    -- isoObject = IsoThumpable.new(square:getCell(), square, "phunspawn_01_0", false, {})
     isoObject = IsoObject.new(square, "phunspawn_01_0")
 
     data.direction = direction
@@ -57,11 +55,13 @@ end
 local oldOnChunkLoaded = SGlobalObjectSystem.OnChunkLoaded
 SGlobalObjectSystem.OnChunkLoaded = function(self, wx, wy)
 
+    print("OnChunkLoaded ", wx, wy)
     local ckey = wx .. "_" .. wy
-    if self.data.chunkedSpawnPoints[ckey] then
+    local chunk = PS:getChunk(ckey)
+    if chunk then
         -- check that chunks spawn points are loaded
         print("Following spawn points need verification ", ckey)
-        PhunTools:printTable(self.data.chunkedSpawnPoints[ckey])
+        PhunTools:printTable(chunk)
     else
         print("No spawn points for chunk ", ckey)
     end
@@ -89,18 +89,15 @@ function SPhunSpawnSystem:initSystem()
     print("PhunSpawnSystem:initSystem")
     print("=========================")
     SGlobalObjectSystem.initSystem(self)
-    print("inited system")
     -- Specify GlobalObjectSystem fields that should be saved.
     self.system:setModDataKeys({})
-    print("set mod data keys")
     -- Specify GlobalObject fields that should be saved.
     self.system:setObjectModDataKeys({'id', 'key', 'label', 'direction', 'location', 'sprites'})
-    print("set object mod data keys")
 
 end
 
 function SPhunSpawnSystem:addObject()
-    print("----- ADD OBJECT --- ")
+
 end
 
 function SPhunSpawnSystem:isValidModData(modData)
@@ -113,7 +110,6 @@ end
 
 function SPhunSpawnSystem:newLuaObjectAt(x, y, z)
     self:noise("adding luaObject " .. x .. ',' .. y .. ',' .. z)
-    print("adding luaObject " .. x .. ',' .. y .. ',' .. z)
     local globalObject = self.system:newObject(x, y, z)
     return self:newLuaObject(globalObject)
 end
@@ -122,54 +118,9 @@ function SPhunSpawnSystem:isValidIsoObject(isoObject)
     return instanceof(isoObject, "IsoObject") and isoObject:getName() == "PhunSpawnPoint"
 end
 
-local getSpawnPointsFromFile = function()
-    local file = PhunSpawn.consts.spawnpoints .. ".lua"
-    local results = PhunTools:loadTable(file)
-    return results
-end
-
-function SPhunSpawnSystem:getSpawnPoints(optionalAll)
-    if optionalAll then
-        if not self.data.allSpawnPoints then
-            local points = {}
-            local chunked = {}
-            local data = getSpawnPointsFromFile()
-            for _, v in ipairs(data) do
-                local key = PS:getKey(v)
-                v.key = key
-                local ckey = math.floor(v.x / 10) .. "_" .. math.floor(v.y / 10)
-                if not chunked[ckey] then
-                    chunked[ckey] = {}
-                end
-                table.insert(chunked[ckey], v)
-                points[key] = v
-            end
-            self.data.chunkedSpawnPoints = chunked
-            self.data.allSpawnPoints = points
-        end
-
-        return self.data.allSpawnPoints
-    else
-        if not self.data.spawnPoints then
-            local data = self:getSpawnPoints(true)
-            local points = {}
-            for key, v in pairs(data) do
-                local enabled = (v.mod == nil or v.mod == "") or getActivatedMods():contains(v.mod)
-                if enabled and v.enabled ~= true then
-                    points[key] = v
-                end
-            end
-            self.data.spawnPoints = points
-            ModData.add(PS.consts.spawnpoints, points)
-        end
-        return self.data.spawnPoints
-    end
-end
-
 function SPhunSpawnSystem:upsertSpawnPoint(data)
-    local points = self:getSpawnPoints(true)
-    print("upsertSpawnPoint ", tostring(data))
-    PhunTools:printTable(data)
+    data.direction = nil
+    local points = PS:getSpawnPoints(true)
     local key = PS:getKey(data)
     data.key = key
     if not points[key] then
@@ -182,15 +133,22 @@ function SPhunSpawnSystem:upsertSpawnPoint(data)
     end
     points[key] = data
     self.data.allSpawnPoints = points
-    PhunTools:saveTable(PS.consts.spawnpoints .. ".lua", points)
+
+    local filePoints = PS:getPointsFromFile()
+    filePoints[key] = data
+
+    PhunTools:saveTable(PS.consts.spawnpoints .. ".lua", filePoints)
     self:loadSpawnPoints()
 end
 
 function SPhunSpawnSystem:deleteSpawnPoint(key)
-    local points = self:getSpawnPoints(true)
+    local points = PS:getSpawnPoints(true)
     points[key] = nil
     self.data.allSpawnPoints = points
-    PhunTools:saveTable(self.consts.spawnpoints .. ".lua", points)
+    local filePoints = PS:getPointsFromFile()
+    filePoints[key] = data
+
+    PhunTools:saveTable(PS.consts.spawnpoints .. ".lua", filePoints)
     for playerName, discoveries in pairs(self.data.discovered) do
         if discoveries[key] then
             discoveries[key] = nil
@@ -218,11 +176,18 @@ function SPhunSpawnSystem:getPlayerDiscoveries(player)
     return self.system.data.discovered[name]
 end
 
+function SPhunSpawnSystem:getSpawnPoint(keyOrObj)
+    local key = PS:getKey(keyOrObj)
+    return PS:getSpawnPoints()[key] or nil
+end
+
 function SPhunSpawnSystem:verifyOnLoadSquare(square)
 
     local key = square:getX() .. "_" .. square:getY() .. "_" .. square:getZ()
-    if self.data.spawnPoints[key] then
-        local v = self.data.spawnPoints[key]
+    if self:getSpawnPoint(key) then
+        print("Found spawn point for " .. key)
+        local v = self:getSpawnPoint(key)
+        PhunTools:printTable(v)
         local existing = self:getIsoObjectAt(v.x, v.y, v.z)
         if not existing then
             print("Missing existing object for " .. v.x .. ',' .. v.y .. ',' .. v.z)
@@ -247,7 +212,7 @@ end
 function SPhunSpawnSystem:loadSpawnPoints()
     self.data.spawnPoints = nil
     self.data.allSpawnPoints = nil
-    local points = self:getSpawnPoints()
+    local points = PS:getSpawnPoints()
     ModData.add(PS.consts.spawnpoints, points)
     ModData.transmit(PS.consts.spawnpoints)
 end

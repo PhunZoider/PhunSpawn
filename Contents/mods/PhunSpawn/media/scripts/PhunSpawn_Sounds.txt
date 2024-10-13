@@ -11,4 +11,63 @@ module Base
 			volume = 0.3f 
 		}
 	}
+	sound PhunSpawn_Enter
+	{
+        category = Player,
+		loop = false, 
+		is3D = true,
+        clip { 
+			file = media/sound/PhunSpawn_Enter.ogg, 
+			distanceMax = 20, 
+			volume = 0.3f 
+		}
+	}
+
+	sound PhunSpawn_Huh_Female1
+	{
+        category = Player,
+		loop = false, 
+		is3D = true,
+        clip { 
+			file = media/sound/PhunSpawn_Huh_Female1.ogg, 
+			distanceMax = 20, 
+			volume = 0.3f 
+		}
+	}
+
+	sound PhunSpawn_Huh_Female2
+	{
+        category = Player,
+		loop = false, 
+		is3D = true,
+        clip { 
+			file = media/sound/PhunSpawn_Huh_Female2.ogg, 
+			distanceMax = 20, 
+			volume = 0.3f 
+		}
+	}
+
+	sound PhunSpawn_Huh_Male1
+	{
+        category = Player,
+		loop = false, 
+		is3D = true,
+        clip { 
+			file = media/sound/PhunSpawn_Huh_Male1.ogg, 
+			distanceMax = 20, 
+			volume = 0.3f 
+		}
+	}
+
+	sound PhunSpawn_Huh_Male2
+	{
+        category = Player,
+		loop = false, 
+		is3D = true,
+        clip { 
+			file = media/sound/PhunSpawn_Huh_Male2.ogg, 
+			distanceMax = 20, 
+			volume = 0.3f 
+		}
+	}
 }
