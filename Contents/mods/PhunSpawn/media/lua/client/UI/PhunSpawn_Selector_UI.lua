@@ -2,6 +2,7 @@ if not isClient() then
     return
 end
 local PhunSpawn = PhunSpawn
+local mapFunctions = require("UI/PhunSpawn_Map")
 
 local FONT_HGT_SMALL = getTextManager():getFontHeight(UIFont.Small)
 local FONT_HGT_MEDIUM = getTextManager():getFontHeight(UIFont.Medium)
@@ -10,10 +11,29 @@ local FONT_HGT_LARGE = getTextManager():getFontHeight(UIFont.Large)
 local FONT_SCALE = FONT_HGT_SMALL / 14
 local HEADER_HGT = FONT_HGT_MEDIUM + 2 * 2
 
+local MINZOOM = 10
+local MAXZOOM = 24
+
 PhunSpawnSelectorUI = ISPanelJoypad:derive("PhunSpawnSelectorUI");
 PhunSpawnSelectorUI.instances = {}
-
 local csystem = nil
+
+function PhunSpawnSelectorUI:getCityBounds(city)
+
+    if city and city.locations then
+
+        local x, x2, y, y2 = city.x, city.x2, city.y, city.y2
+
+        local padding = 10
+        local map = self.miniMap.mapAPI
+        local wx = map:worldToUIX(x - padding, x - padding)
+        local wx2 = map:worldToUIX(x2 + padding, x2 + padding)
+        local wy = map:worldToUIY(y - padding, y - padding)
+        local wy2 = map:worldToUIY(y2 + padding, y2 + padding)
+        return wx, wx2, wy, wy2
+    end
+
+end
 
 function PhunSpawnSelectorUI.OnOpenPanel(playerObj)
 
@@ -61,34 +81,36 @@ function PhunSpawnSelectorUI.OnOpenPanel(playerObj)
 end
 
 function PhunSpawnSelectorUI:rebuild(spawnpoints)
+
     getSoundManager():PlaySound("PhunSpawn_Enter", false, 0):setVolume(0.90);
-    self.city:clear()
 
     local cityKeys = {}
+    local groups = {}
+    local newPoints = {}
+
+    self.city:clear()
 
     self.spawns = spawnpoints or self.spawns or {}
 
     local data = self.spawns
 
     local cities = {}
-    local locations = {}
-    local centerPointTotal = {
-        x = 0,
-        y = 0
-    }
-    local boundsTotal = {
-        x = 0,
-        y = 0,
-        x2 = 0,
-        y2 = 0
-    }
     local cityCount = 0
 
     local discoveries = csystem:getPlayerDiscoveries(self.player)
 
+    local boundX = 0
+    local boundY = 0
+    local boundX2 = 0
+    local boundY2 = 0
+    local centreX = 0
+    local centreY = 0
+    local cityCount = 0
+
     for k, spawn in pairs(data) do
 
         local enable = spawn.enabled ~= false
+
         if spawn.autoDiscovered ~= true then
             enable = discoveries[k] == true
         end
@@ -96,6 +118,7 @@ function PhunSpawnSelectorUI:rebuild(spawnpoints)
         if enable or (isAdmin() and self.showAll.selected[1] == true) then
 
             local cityName = spawn.city or nil
+
             if cityName == nil then
                 print("ERROR: PhunSpawn: No city name for spawn point ", k)
                 cityName = csystem:getDefaultCityName(spawn.x, spawn.y) or "Unknown"
@@ -111,68 +134,68 @@ function PhunSpawnSelectorUI:rebuild(spawnpoints)
                     titleTop = 0,
                     x = 0,
                     y = 0,
+                    x2 = 0,
+                    y2 = 0,
                     locations = {}
                 }
 
                 table.insert(cityKeys, cityName)
             end
 
-            table.insert(cities[cityName].locations, k)
+            local c = cities[cityName]
 
-            local x = 0
-            local y = 0
-            local x2 = nil
-            local y2 = nil
+            table.insert(c.locations, k)
 
-        end
-    end
+            if c.x == 0 or spawn.x < c.x then
+                c.x = spawn.x
+            end
+            if c.y == 0 or spawn.y < c.y then
+                c.y = spawn.y
+            end
+            if spawn.x > c.x2 then
+                c.x2 = spawn.x
+            end
+            if spawn.y > c.y2 then
+                c.y2 = spawn.y
+            end
+            cities[cityName].centreX = cities[cityName].x + (cities[cityName].x2 - cities[cityName].x)
+            cities[cityName].centreY = cities[cityName].y + (cities[cityName].y2 - cities[cityName].y)
 
-    for k, v in pairs(cities) do
-        local city = cities[k]
-        local locations = #city.locations
+            cities[cityName].titleLeft = cities[cityName].centreX - (cities[cityName].titleWidth / 2)
+            cities[cityName].titleTop = cities[cityName].centreY - (cities[cityName].titleHeight / 2) - 5
 
-        for _, spawnKey in ipairs(city.locations) do
-            local spawn = data[spawnKey]
-            if spawn.x and spawn.y then
-                city.x = city.x + spawn.x
-                city.y = city.y + spawn.y
-                if spawn.city ~= "Hospital" then
-                    centerPointTotal.x = centerPointTotal.x + spawn.x
-                    centerPointTotal.y = centerPointTotal.y + spawn.y
-                    cityCount = cityCount + 1
-                    if boundsTotal.x == 0 or spawn.x < boundsTotal.x then
-                        boundsTotal.x = spawn.x
-                    end
-                    if boundsTotal.y == 0 or spawn.y < boundsTotal.y then
-                        boundsTotal.y = spawn.y
-                    end
-                    if boundsTotal.x2 == 0 or spawn.x > boundsTotal.x2 then
-                        boundsTotal.x2 = spawn.x
-                    end
-                    if boundsTotal.y2 == 0 or spawn.y > boundsTotal.y2 then
-                        boundsTotal.y2 = spawn.y
-                    end
+            if spawn.city ~= "Hospital" then
+                cityCount = cityCount + 1
+                centreX = centreX + spawn.x
+                centreY = centreY + spawn.y
+                if boundX == 0 or spawn.x < boundX then
+                    boundX = spawn.x
+                end
+                if boundY == 0 or spawn.y < boundY then
+                    boundY = spawn.y
+                end
+                if boundX2 == 0 or spawn.x > boundX2 then
+                    boundX2 = spawn.x
+                end
+                if boundY2 == 0 or spawn.y > boundY2 then
+                    boundY2 = spawn.y
                 end
             end
         end
-
-        city.x = city.x / #city.locations
-        city.y = city.y / #city.locations
-
-        city.titleLeft = city.x - (city.titleWidth / 2)
-        city.titleTop = city.y - (city.titleHeight / 2) - 5
     end
-
-    self.centerPoint = {
-        x = centerPointTotal.x / cityCount,
-        y = centerPointTotal.y / cityCount
-    }
 
     self.cities = cities
     self.cityKeys = cityKeys
-    self.initialBounds = boundsTotal
+    self.initialBounds = {
+        x = boundX,
+        y = boundY,
+        x2 = boundX2,
+        y2 = boundY2
+    }
+
     local api = self.miniMap.mapAPI
-    api:centerOn(centerPointTotal.x / cityCount, centerPointTotal.y / cityCount)
+    api:centerOn(centreX / cityCount, centreY / cityCount)
+
     self:refreshCitiesCombo()
 end
 
@@ -237,7 +260,7 @@ function PhunSpawnSelectorUI:refreshLocations()
     if not city then
         return
     end
-
+    mapFunctions.zoomAndCentreMapToBounds(self.miniMap, city.x, city.y, city.x2, city.y2)
     for _, location in ipairs(city.locations) do
         self.location:addOptionWithData(self.spawns[location].title, self.spawns[location])
     end
@@ -258,7 +281,16 @@ function PhunSpawnSelectorUI:setSelectedLocation(locationIndex)
     end
     self.notOk:setVisible(false)
     self.selectedLocation = location
-    self.description:setText(" <LEFT> " .. (location.description or self.selectedCity.description or ""))
+    -- self.description:setText(" <LEFT> " .. (location.description or self.selectedCity.description or ""))
+    local zf = tostring(self.miniMap.mapAPI:getZoomF())
+    local ws = tostring(self.miniMap.mapAPI:getWorldScale())
+    local o = ""
+    if self.zBorder then
+        o =
+            tostring(self.zBorder.x) .. ", " .. tostring(self.zBorder.y) .. ", " .. tostring(self.zBorder.width) .. ", " ..
+                tostring(self.zBorder.height)
+    end
+    self.description:setText(zf .. ", ws=" .. ws .. ", zBorder=" .. o)
     self.description.textDirty = true;
 end
 
@@ -305,10 +337,6 @@ function PhunSpawnSelectorUI:isValid()
         self.selectedCityAndLocation = nil
     end
     self.notOk:setVisible(not isValid)
-
-    -- self.noLocation:setVisible(location == nil)
-    -- self.noLocation:setVisible(false)
-
     return isValid
 end
 
@@ -426,14 +454,115 @@ function PhunSpawnSelectorUI:prerender()
 
 end
 
+function PhunSpawnSelectorUI:recalcClusters()
+
+    local scale = self.miniMap.mapAPI:getWorldScale()
+    local distance = 200 / scale
+
+    local clusters = {}
+    for k, v in pairs(self.spawns) do
+        if v.enabled ~= true then
+            table.insert(clusters, {v.x, v.y})
+        end
+    end
+
+    print(scale, ", ", distance)
+    local cs = mapFunctions.proximityClustering(clusters, distance)
+    local info = {}
+    for _, c in ipairs(cs) do
+        local xs = 0
+        local ys = 0
+        local x = 0
+        local y = 0
+        local x2 = 0
+        local y2 = 0
+        local h = 0
+        local w = 0
+
+        for _, p in ipairs(c) do
+            xs = xs + p[1]
+            ys = ys + p[2]
+            if x == 0 or p[1] < x then
+                x = p[1]
+            end
+            if y == 0 or p[2] < y then
+                y = p[2]
+            end
+            if x2 == 0 or p[1] > x2 then
+                x2 = p[1]
+            end
+            if y2 == 0 or p[2] > y2 then
+                y2 = p[2]
+            end
+            h = y2 - y
+            w = x2 - x
+        end
+
+        x = self.miniMap.mapAPI:worldToUIX(x, x)
+        y = self.miniMap.mapAPI:worldToUIX(y, y)
+        x2 = self.miniMap.mapAPI:worldToUIX(x2, x2)
+        y2 = self.miniMap.mapAPI:worldToUIX(y2, y2)
+
+        h = y2 - y
+        w = x2 - x
+
+        -- if h < 30 or w < 30 then
+        --     x = x - 15
+        --     y = y - 15
+        --     x2 = x2 + 15
+        --     y2 = y2 + 15
+        --     h = y2 - y
+        --     w = x2 - x
+        -- end
+
+        table.insert(info, {
+            centerX = xs / #c,
+            centerY = ys / #c,
+            count = #c,
+            x = x,
+            y = y,
+            x2 = x2,
+            y2 = y2,
+            h = h,
+            w = w,
+            texture = getTexture("media/textures/worldMap/circle_only_highlight.png"),
+            textureInner = getTexture("media/textures/worldMap/circle_center.png")
+        })
+    end
+    self.clusters = info
+    PhunTools:printTable(self.clusters)
+end
+
+local oldScale, oldDistance, oldCenterX, oldCenterY, oldX, oldY = nil, nil, nil, nil, nil, nil
 function PhunSpawnSelectorUI:render()
 
     ISPanelJoypad.render(self)
 
+    local newX = self.miniMap.mapAPI:uiToWorldX(1, 1)
+    local newY = self.miniMap.mapAPI:uiToWorldY(1, 1)
+
+    -- if oldX ~= newX or oldY ~= newY then
+    --     self:recalcClusters()
+    --     oldX = newX
+    --     oldY = newY
+    -- end
+
     -- clip any markers on map that aren't visible
     self:setStencilRect(self.miniMap.x, self.miniMap.y, self.miniMap.width, self.miniMap.height)
 
+    -- for _, c in ipairs(self.clusters or {}) do
+    --     local bgColor = self.markerBackgroundColour
+    --     local borderColor = self.markerBorderColour
+
+    --     -- local texture = getTexture("media/textures/worldMap/circle_only_highlight.png")
+    --     self:drawTextureScaled(c.texture, c.x, c.y, c.x2 - c.x, c.y2 - c.y, 0.7, 1, 0, 0);
+    --     self:drawTextureScaled(c.textureInner, c.x, c.y, c.x2 - c.x, c.y2 - c.y, 0.7, 1, 0, 0);
+    --     -- self.miniMap:drawRect(c.x, c.y, c.x2 - c.x, c.y2 - c.y, .5, bgColor.r, bgColor.g, bgColor.b);
+    --     -- self.miniMap:drawRectBorder(c.x, c.y, c.x2 - c.x, c.y2 - c.y, .5, borderColor.r, borderColor.g, borderColor.b);
+    -- end
+
     for k, city in pairs(self.cities) do
+
         city.labelX = math.floor(self.miniMap.mapAPI:worldToUIX(city.x, city.y));
         city.labelY = math.floor(self.miniMap.mapAPI:worldToUIY(city.y, city.y));
         local bgColor = self.markerBackgroundColour
@@ -447,6 +576,15 @@ function PhunSpawnSelectorUI:render()
         self.miniMap:drawRectBorder(city.labelX - 1, city.labelY - 1, city.titleWidth + 2, city.titleHeight + 2,
             borderColor.a, borderColor.r, borderColor.g, borderColor.b);
         self.miniMap:drawText(city.title, city.labelX, city.labelY, 1, 1, 1, 1, UIFont.Small);
+
+        local cityIndex = self.city.selected
+
+        local city = cityIndex and self.city.options[cityIndex] and self.city.options[cityIndex].data or nil
+        if city then
+            local wx, wx2, wy, wy2 = self:getCityBounds(city)
+            self.miniMap:drawRect(wx, wy, wx2 - wx, wy2 - wy, .3, 1, 0, 0);
+        end
+
     end
 
     -- clear the stencil
@@ -518,6 +656,7 @@ function PhunSpawnSelectorUI:createChildren()
     self.description.autosetheight = false
     self.description.clip = true
     self.description:paginate()
+
     self:addChild(self.description);
 
     y = self.description.y + self.description.height + 10
@@ -699,6 +838,7 @@ function PhunSpawnSelectorUI:InitPlayer()
     api:centerOn(api:getMaxXInSquares() / 2, api:getMaxYInSquares() / 2)
 
     function mini:onMouseUp(x, y)
+        ISMiniMapInner.onMouseUp(self, x, y)
         if mini.dragging then
             mini.dragging = false
             if mini.dragMoved then
@@ -707,12 +847,19 @@ function PhunSpawnSelectorUI:InitPlayer()
 
             for k, marker in pairs(mini.parent.cities) do
 
-                if x >= marker.labelX and x <= (marker.labelX + marker.titleWidth) and y >= marker.labelY and y <=
-                    (marker.labelY + marker.titleHeight) then
+                if marker.labelX and x >= marker.labelX and x <= (marker.labelX + marker.titleWidth) and y >=
+                    marker.labelY and y <= (marker.labelY + marker.titleHeight) then
                     return mini.parent:setSelectedCityByKey(k)
                 end
             end
         end
+        self.parent:recalcClusters()
+    end
+
+    function mini:onMouseWheel(del)
+        local res = ISMiniMapInner.onMouseWheel(self, del)
+        self.parent:recalcClusters()
+        return res
     end
 
     MapUtils.initDefaultStyleV1(mini)
