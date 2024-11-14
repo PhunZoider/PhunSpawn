@@ -74,9 +74,6 @@ function PhunSpawn:getSpawnPoints(reload)
     -- load all points
     local data = self:getAllSpawnPoints(reload)
 
-    print("All spawn points:")
-    PhunTools:printTable(data)
-
     local points = {}
     local forModData = {}
 

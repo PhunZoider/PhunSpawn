@@ -16,6 +16,7 @@ Commands[PS.commands.getAllSpawns] = function(player, data)
 end
 
 Commands[PS.commands.getMyDiscoveries] = function(player, data)
+    CPhunSpawnSystem.instance.data.discovered[player:getUsername()] = data
     CPhunSpawnSystem.instance.data.discoveries[player:getUsername()] = data
 end
 

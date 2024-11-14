@@ -10,9 +10,9 @@ SPhunSpawnSystem = SGlobalObjectSystem:derive("SPhunSpawnSystem")
 function SPhunSpawnSystem:new()
     local o = SGlobalObjectSystem.new(self, "phunspawn")
     o.data = {
-        spawnPoints = nil, -- ModData.getOrCreate(PS.consts.spawnpoints),
+        spawnPoints = ModData.getOrCreate(PS.consts.spawnpoints),
         allSpawnPoints = nil,
-        discovered = nil, -- ModData.getOrCreate(PS.consts.discoveries),
+        discovered = ModData.getOrCreate(PS.consts.discoveries),
         chunkedSpawnPoints = {}
     }
     o:loadSpawnPoints()
@@ -52,27 +52,27 @@ function SPhunSpawnSystem.addToWorld(square, data, direction)
     isoObject:transmitCompleteItemToClients()
 end
 
-local oldOnChunkLoaded = SGlobalObjectSystem.OnChunkLoaded
-SGlobalObjectSystem.OnChunkLoaded = function(self, wx, wy)
+-- local oldOnChunkLoaded = SGlobalObjectSystem.OnChunkLoaded
+-- SGlobalObjectSystem.OnChunkLoaded = function(self, wx, wy)
 
-    print("OnChunkLoaded ", wx, wy)
-    local ckey = wx .. "_" .. wy
-    local chunk = PS:getChunk(ckey)
-    if chunk then
-        -- check that chunks spawn points are loaded
-        print("Following spawn points need verification ", ckey)
-        PhunTools:printTable(chunk)
+--     print("OnChunkLoaded ", wx, wy)
+--     local ckey = wx .. "_" .. wy
+--     local chunk = PS:getChunk(ckey)
+--     if chunk then
+--         -- check that chunks spawn points are loaded
+--         print("Following spawn points need verification ", ckey)
+--         PhunTools:printTable(chunk)
 
-        for _, v in ipairs(chunk) do
-            local sq = getCell():getGridSquare(v.x, v.y, v.z)
-            if sq then
-                SPhunSpawnSystem.instance:verifyOnLoadSquare(sq)
-            end
-        end
-    end
+--         for _, v in ipairs(chunk) do
+--             local sq = getCell():getGridSquare(v.x, v.y, v.z)
+--             if sq then
+--                 SPhunSpawnSystem.instance:verifyOnLoadSquare(sq)
+--             end
+--         end
+--     end
 
-    return oldOnChunkLoaded(self, wx, wy)
-end
+--     return oldOnChunkLoaded(self, wx, wy)
+-- end
 
 function SPhunSpawnSystem:addFromSprite(x, y, z, sprite)
 
@@ -164,9 +164,11 @@ function SPhunSpawnSystem:deleteSpawnPoint(key)
 end
 
 function SPhunSpawnSystem:registerDiscovery(player, key)
+    print("registerDiscovery ", key)
     local name = type(player) == "string" and player or player:getUsername()
     local discoveries = self:getPlayerDiscoveries(player)
     discoveries[key] = true
+
     return discoveries
 end
 
@@ -190,9 +192,8 @@ function SPhunSpawnSystem:verifyOnLoadSquare(square)
 
     local key = square:getX() .. "_" .. square:getY() .. "_" .. square:getZ()
     if self:getSpawnPoint(key) then
-        print("Found spawn point for " .. key)
+        -- print("Found spawn point for " .. key)
         local v = self:getSpawnPoint(key)
-        PhunTools:printTable(v)
         local existing = self:getIsoObjectAt(v.x, v.y, v.z)
         if not existing then
             print("Missing existing object for " .. v.x .. ',' .. v.y .. ',' .. v.z)

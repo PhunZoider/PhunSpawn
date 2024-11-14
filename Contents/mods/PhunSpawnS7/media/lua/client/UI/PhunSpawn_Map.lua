@@ -7,7 +7,7 @@ local mapFunctions = {
 mapFunctions.zoomAndCentreMapToBounds = function(mapElement, x, y, x2, y2)
 
     local map = mapElement
-    local api = map.mapAPI
+    local api = mapElement.mapAPI
 
     local wx = x - mapFunctions.padding
     local wy = y - mapFunctions.padding
@@ -18,20 +18,27 @@ mapFunctions.zoomAndCentreMapToBounds = function(mapElement, x, y, x2, y2)
     local height = wy2 - wy
 
     local bound = math.max(width, height)
-    local viewport = math.max(map:getWidth(), map:getHeight())
+    local mapWidth = map:getWidth()
+    local mapHeight = map:getHeight()
+    local viewport = math.max(mapWidth, mapHeight)
 
-    api:centerOn(x + (width / 2), y + (height / 2))
-
+    api:centerOn(wx + (width / 2), wy + (height / 2))
     -- kludge to get the zoom level right
     for zoom = mapFunctions.zoomMax, mapFunctions.zoomMin, -.5 do
         api:setZoom(zoom)
-        if bound * api:getWorldScale() < viewport then
+        local lw = mapElement:getWidth()
+        local lh = map:getHeight()
+
+        local scale = api:getWorldScale()
+        local check = bound * scale
+        print("Check is ", tostring(check), " and viewport is ", tostring(viewport), " scale is ", tostring(scale))
+        if check < viewport then
             -- box now fits in viewport at this zoom level
             return zoom
         end
     end
 
-    api:setZoom(mapFunctions.zoomMax)
+    -- api:setZoom(mapFunctions.zoomMax)
     return mapFunctions.zoomMax
 
 end

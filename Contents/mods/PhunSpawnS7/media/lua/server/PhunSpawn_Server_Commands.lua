@@ -38,6 +38,8 @@ end
 
 Commands[PS.commands.getMyDiscoveries] = function(player)
     local data = SPhunSpawnSystem.instance:getPlayerDiscoveries(player)
+    print("getMyDiscoveries", tostring(player) .. " " .. player and player.getUserName and player:getUsername() or "?")
+    PhuNTools:printTable(data)
     SPhunSpawnSystem.instance:sendCommand(player, PS.name, PS.commands.getMyDiscoveries, data)
 end
 

@@ -33,7 +33,7 @@ module PhunSpawn
                 CanBeDoneFromFloor:false,
                 Time:400,
                 SkillRequired:Electricity=4;MetalWelding=2,
-                Result: Moveables.phunspawn_01_4,
+                Result: Escape Vent,
                 Category:Electrical,
 	}
 }

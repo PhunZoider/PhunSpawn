@@ -76,7 +76,7 @@ function PhunSpawn:getRandomUndiscovered(fromX, fromY, closerThan)
 
     local PhunSpawnPoints = self:getSpawnPoints()
     local discovered = CPhunSpawnSystem.instance:getPlayerDiscoveries(getPlayer())
-    local closerThan = closerThan or 1000
+    local closerThan = closerThan or 500
 
     local points = {}
     for k, v in pairs(PhunSpawnPoints) do
@@ -100,16 +100,17 @@ function PhunSpawn:doRandomUndiscovered(player)
 
     local sq = player:getSquare()
     local discovered = CPhunSpawnSystem.instance:getPlayerDiscoveries(player)
-
+    local found = false
     local point = self:getRandomUndiscovered(sq:getX(), sq:getY())
     local unlearned = ModData.getOrCreate("PhunSpawn_Learned")
     if point then
-        if discovered[point.key] then
-            discovered[point.key] = nil
-        end
-        unlearned[point.key] = nil
-        if not unlearned[point.key] and not discovered[point.key] then
 
+        -- if discovered[point.key] then
+        --     discovered[point.key] = nil
+        -- end
+        -- unlearned[point.key] = nil
+        if not unlearned[point.key] and not discovered[point.key] then
+            found = true
             local radius = 50
             -- Generate a random angle (in radians) between 0 and 2π
             local angle = ZombRand(math.pi * 2)
@@ -138,6 +139,9 @@ function PhunSpawn:doRandomUndiscovered(player)
 
     end
 
+    if not found then
+        player:setHaloNote(getText("IGUI_PhunSpawn_NoDiscovery"))
+    end
 end
 
 function PhunSpawn:removeSymbol(x, y)
@@ -154,15 +158,16 @@ function PhunSpawn:removeSymbol(x, y)
 
     for i = 1, count do
         local symbol = ISWorldMap_instance.mapAPI:getSymbolsAPI():getSymbolByIndex(i)
-        local wx = symbol:getWorldX()
-        if wx == x then
-            local wy = symbol:getWorldY()
-            if wy == y then
-                ISWorldMap_instance.mapAPI:getSymbolsAPI():removeSymbolByIndex(i)
-                break
+        if symbol then
+            local wx = math.floor(symbol:getWorldX())
+            if wx == math.floor(x) then
+                local wy = math.floor(symbol:getWorldY())
+                if wy == math.floor(y) then
+                    ISWorldMap_instance.mapAPI:getSymbolsAPI():removeSymbolByIndex(i)
+                    break
+                end
             end
         end
-
     end
 
 end

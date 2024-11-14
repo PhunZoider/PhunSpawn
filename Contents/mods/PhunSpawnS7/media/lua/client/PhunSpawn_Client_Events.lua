@@ -33,8 +33,9 @@ Events.OnReceiveGlobalModData.Add(function(key, data)
         PhunSpawn:getSpawnPoints(true)
 
     elseif key == PhunSpawn.consts.discoveries then
-        CPhunSpawnSystem.instance.data.discovered = data
         ModData.add(PhunSpawn.consts.discoveries, data)
+        CPhunSpawnSystem.instance.data.discovered = ModData.getOrCreate(PhunSpawn.consts.discoveries)
+
     end
 
     if sh == nil then
@@ -175,7 +176,7 @@ if Events["OnHospitalRoomTeleport"] then
         Events.OnHospitalRoomTeleport.Add(function(player)
 
             local maxHalo1 = 12 -- 1-6
-            local maxSay = 1 -- 1
+            local maxSay = 3 -- 1
 
             local halo1 = ZombRand(maxHalo1) + 1
             local halo2

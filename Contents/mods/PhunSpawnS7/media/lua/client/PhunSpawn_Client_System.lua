@@ -9,9 +9,9 @@ local spawnSystem = CPhunSpawnSystem
 function spawnSystem:new()
     local o = CGlobalObjectSystem.new(self, "phunspawn")
     o.data = {
-        spawnPoints = nil, -- ModData.getOrCreate(PS.consts.spawnpoints),
+        spawnPoints = ModData.getOrCreate(PS.consts.spawnpoints),
         allSpawnPoints = nil,
-        discovered = nil, -- ModData.getOrCreate(PS.consts.discoveries)
+        discovered = ModData.getOrCreate(PS.consts.discoveries),
         learned = ModData.getOrCreate("PhunSpawn_Learned")
     }
     print("REQUESTING SPAWNPOINTS")
@@ -103,7 +103,7 @@ end
 function spawnSystem:deleteObject(obj, player)
 
     local key = PS:getKey(obj)
-    PS:removeDiscovery(player, key)
+    self:removeDiscovery(player, key)
     self:sendCommand(player or getSpecificPlayer(0), PS.commands.deleteSpawnPoint, {
         key = key
     })

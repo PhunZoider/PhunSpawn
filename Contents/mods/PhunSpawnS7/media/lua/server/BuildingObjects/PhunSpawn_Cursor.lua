@@ -66,8 +66,8 @@ function PhunSpawnCursor:walkTo(x, y, z)
     return true
 end
 
-local invalidInstances = {"IsoWindow", "IsoDoor", "IsoThumpable", "IsoStove", "IsoLightSwitch", "IsoRadio",
-                          "IsoGenerator", "IsoCurtain"}
+local invalidInstances =
+    {"IsoWindow", "IsoDoor", "IsoStove", "IsoLightSwitch", "IsoRadio", "IsoGenerator", "IsoCurtain"}
 
 function PhunSpawnCursor:isValid(square)
 
@@ -90,17 +90,23 @@ function PhunSpawnCursor:isValid(square)
         for i = 0, objects:size() - 1 do
             local object = objects:get(i);
             if object then
+                local name = tostring(object:getName())
                 for _, invalidInstance in ipairs(invalidInstances) do
                     if instanceof(object, invalidInstance) then
+                        print("Invalid instance: " .. invalidInstance)
                         return false
                     end
                 end
-                if object:getName() == "PhunSpawnPoint" then
+
+                if name == "PhunSpawnPoint" then
+                    -- there is already vent here
+                    print("PhunSpawnPoint already exists here ", name)
                     return false
                 end
             end
         end
 
+        print("All good")
         return true
 
     end

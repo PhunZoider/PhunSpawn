@@ -260,9 +260,12 @@ function PhunSpawnSelectorUI:refreshLocations()
     if not city then
         return
     end
+    local padding = 10 -- self.miniMap.mapAPI:uiToWorldX(10, 10)
+
     mapFunctions.zoomAndCentreMapToBounds(self.miniMap, city.x, city.y, city.x2, city.y2)
     for _, location in ipairs(city.locations) do
-        self.location:addOptionWithData(self.spawns[location].title, self.spawns[location])
+        local spawn = self.spawns[location]
+        self.location:addOptionWithData(spawn.title, spawn)
     end
 
 end
@@ -281,7 +284,7 @@ function PhunSpawnSelectorUI:setSelectedLocation(locationIndex)
     end
     self.notOk:setVisible(false)
     self.selectedLocation = location
-    -- self.description:setText(" <LEFT> " .. (location.description or self.selectedCity.description or ""))
+    self.description:setText(" <LEFT> " .. (location.description or self.selectedCity.description or ""))
     local zf = tostring(self.miniMap.mapAPI:getZoomF())
     local ws = tostring(self.miniMap.mapAPI:getWorldScale())
     local o = ""
@@ -290,7 +293,7 @@ function PhunSpawnSelectorUI:setSelectedLocation(locationIndex)
             tostring(self.zBorder.x) .. ", " .. tostring(self.zBorder.y) .. ", " .. tostring(self.zBorder.width) .. ", " ..
                 tostring(self.zBorder.height)
     end
-    self.description:setText(zf .. ", ws=" .. ws .. ", zBorder=" .. o)
+    -- self.description:setText(zf .. ", ws=" .. ws .. ", zBorder=" .. o)
     self.description.textDirty = true;
 end
 
@@ -446,11 +449,11 @@ end
 function PhunSpawnSelectorUI:prerender()
     ISPanelJoypad.prerender(self)
 
-    self:drawRectBorder(self.description.x, self.description.y, self.description.width, self.description.height,
-        self.borderColor.a, self.borderColor.r, self.borderColor.g, self.borderColor.b);
+    -- self:drawRectBorder(self.description.x, self.description.y, self.description.width, self.description.height,
+    --     self.borderColor.a, self.borderColor.r, self.borderColor.g, self.borderColor.b);
 
-    self:drawRectBorder(self.miniMap.x, self.miniMap.y, self.miniMap.width, self.miniMap.height, self.borderColor.a,
-        self.borderColor.r, self.borderColor.g, self.borderColor.b);
+    -- self:drawRectBorder(self.miniMap.x, self.miniMap.y, self.miniMap.width, self.miniMap.height, self.borderColor.a,
+    --     self.borderColor.r, self.borderColor.g, self.borderColor.b);
 
 end
 
@@ -466,7 +469,7 @@ function PhunSpawnSelectorUI:recalcClusters()
         end
     end
 
-    print(scale, ", ", distance)
+    print(getTimestamp(), ", ", scale, ", ", distance)
     local cs = mapFunctions.proximityClustering(clusters, distance)
     local info = {}
     for _, c in ipairs(cs) do
@@ -530,22 +533,13 @@ function PhunSpawnSelectorUI:recalcClusters()
         })
     end
     self.clusters = info
-    PhunTools:printTable(self.clusters)
+
 end
 
 local oldScale, oldDistance, oldCenterX, oldCenterY, oldX, oldY = nil, nil, nil, nil, nil, nil
 function PhunSpawnSelectorUI:render()
 
     ISPanelJoypad.render(self)
-
-    local newX = self.miniMap.mapAPI:uiToWorldX(1, 1)
-    local newY = self.miniMap.mapAPI:uiToWorldY(1, 1)
-
-    -- if oldX ~= newX or oldY ~= newY then
-    --     self:recalcClusters()
-    --     oldX = newX
-    --     oldY = newY
-    -- end
 
     -- clip any markers on map that aren't visible
     self:setStencilRect(self.miniMap.x, self.miniMap.y, self.miniMap.width, self.miniMap.height)
@@ -561,32 +555,131 @@ function PhunSpawnSelectorUI:render()
     --     -- self.miniMap:drawRectBorder(c.x, c.y, c.x2 - c.x, c.y2 - c.y, .5, borderColor.r, borderColor.g, borderColor.b);
     -- end
 
-    for k, city in pairs(self.cities) do
+    local bounds = {
+        x = self.miniMap.mapAPI:uiToWorldX(1, 1),
+        y = self.miniMap.mapAPI:uiToWorldY(1, 1),
+        x2 = self.miniMap.mapAPI:uiToWorldX(self.miniMap.width, self.miniMap.width),
+        y2 = self.miniMap.mapAPI:uiToWorldY(self.miniMap.height, self.miniMap.height)
+    }
 
-        city.labelX = math.floor(self.miniMap.mapAPI:worldToUIX(city.x, city.y));
-        city.labelY = math.floor(self.miniMap.mapAPI:worldToUIY(city.y, city.y));
-        local bgColor = self.markerBackgroundColour
-        local borderColor = self.markerBorderColour
-        if self.selectedLocation and self.selectedLocation.city == k then
-            bgColor = self.markerSelectedBackgroundColor
-            borderColor = self.markerSelectedBorderColour
+    local discovered = CPhunSpawnSystem and CPhunSpawnSystem.instance and
+                           CPhunSpawnSystem.instance:getPlayerDiscoveries(self.player)
+
+    if discovered == nil then
+        discovered = {}
+    end
+    if self.miniMap.mapAPI:getZoomF() >= 15 then
+
+        -- show locations only
+        for k, spawn in pairs(self.spawns) do
+            if spawn.autoDiscovered or discovered[k] then
+                if spawn.enabled ~= true then
+                    if spawn.x >= bounds.x and spawn.x <= bounds.x2 and spawn.y >= bounds.y and spawn.y <= bounds.y2 then
+                        local x = math.floor(self.miniMap.mapAPI:worldToUIX(spawn.x, spawn.x))
+                        local y = math.floor(self.miniMap.mapAPI:worldToUIY(spawn.y, spawn.y))
+                        local txt = spawn.title
+                        local txtWidth = getTextManager():MeasureStringX(UIFont.Small, txt)
+                        local txtHeight = getTextManager():MeasureStringY(UIFont.Small, txt)
+                        local bgColor = self.markerBackgroundColour
+                        local borderColor = self.markerBorderColour
+                        if self.selectedLocation and self.selectedLocation.key == k then
+                            bgColor = self.markerSelectedBackgroundColor
+                            borderColor = self.markerSelectedBorderColour
+                        end
+
+                        self.miniMap:drawRect(x - 1, y, txtWidth + 2, txtHeight + 2, bgColor.a, bgColor.r, bgColor.g,
+                            bgColor.b);
+                        self.miniMap:drawRectBorder(x - 1, y - 1, txtWidth + 2, txtHeight + 2, borderColor.a,
+                            borderColor.r, borderColor.g, borderColor.b);
+                        self.miniMap:drawText(txt, x, y, 1, 1, 1, 1, UIFont.Small);
+                    end
+                end
+            end
         end
-        self.miniMap:drawRect(city.labelX - 1, city.labelY - 1, city.titleWidth + 2, city.titleHeight + 2, bgColor.a,
-            bgColor.r, bgColor.g, bgColor.b);
-        self.miniMap:drawRectBorder(city.labelX - 1, city.labelY - 1, city.titleWidth + 2, city.titleHeight + 2,
-            borderColor.a, borderColor.r, borderColor.g, borderColor.b);
-        self.miniMap:drawText(city.title, city.labelX, city.labelY, 1, 1, 1, 1, UIFont.Small);
+    else
+        -- show region markers only
+        for k, city in pairs(self.cities) do
 
-        local cityIndex = self.city.selected
+            if city.x >= bounds.x and city.x2 <= bounds.x2 and city.y >= bounds.y and city.y2 <= bounds.y2 then
 
-        local city = cityIndex and self.city.options[cityIndex] and self.city.options[cityIndex].data or nil
-        if city then
-            local wx, wx2, wy, wy2 = self:getCityBounds(city)
-            self.miniMap:drawRect(wx, wy, wx2 - wx, wy2 - wy, .3, 1, 0, 0);
+                city.labelX = math.floor(self.miniMap.mapAPI:worldToUIX(city.x, city.x));
+                city.labelY = math.floor(self.miniMap.mapAPI:worldToUIY(city.y, city.y));
+                local bgColor = self.markerBackgroundColour
+                local borderColor = self.markerBorderColour
+
+                if self.selectedLocation and self.selectedLocation.city == k then
+                    bgColor = self.markerSelectedBackgroundColor
+                    borderColor = self.markerSelectedBorderColour
+                end
+
+                self.miniMap:drawRect(city.labelX - 1, city.labelY - 1, city.titleWidth + 2, city.titleHeight + 2,
+                    bgColor.a, bgColor.r, bgColor.g, bgColor.b);
+                self.miniMap:drawRectBorder(city.labelX - 1, city.labelY - 1, city.titleWidth + 2, city.titleHeight + 2,
+                    borderColor.a, borderColor.r, borderColor.g, borderColor.b);
+                self.miniMap:drawText(city.title, city.labelX, city.labelY, 1, 1, 1, 1, UIFont.Small);
+
+            end
         end
-
     end
 
+    -- for k, city in pairs(self.cities) do
+
+    --     if self.miniMap.mapAPI:getZoomF() < 15 then
+    --         city.labelX = math.floor(self.miniMap.mapAPI:worldToUIX(city.x, city.x));
+    --         city.labelY = math.floor(self.miniMap.mapAPI:worldToUIY(city.y, city.y));
+    --         local bgColor = self.markerBackgroundColour
+    --         local borderColor = self.markerBorderColour
+    --         if self.selectedLocation and self.selectedLocation.city == k then
+    --             bgColor = self.markerSelectedBackgroundColor
+    --             borderColor = self.markerSelectedBorderColour
+    --         end
+    --         self.miniMap:drawRect(city.labelX - 1, city.labelY - 1, city.titleWidth + 2, city.titleHeight + 2,
+    --             bgColor.a, bgColor.r, bgColor.g, bgColor.b);
+    --         self.miniMap:drawRectBorder(city.labelX - 1, city.labelY - 1, city.titleWidth + 2, city.titleHeight + 2,
+    --             borderColor.a, borderColor.r, borderColor.g, borderColor.b);
+    --         self.miniMap:drawText(city.title .. " " .. self.miniMap.mapAPI:getZoomF(), city.labelX, city.labelY, 1, 1,
+    --             1, 1, UIFont.Small);
+    --     end
+
+    --     local cityIndex = self.city.selected
+
+    --     local city = cityIndex and self.city.options[cityIndex] and self.city.options[cityIndex].data or nil
+    --     if city and self.miniMap.mapAPI:getZoomF() >= 15 then
+    --         -- draw bounding box around city
+    --         local wx, wx2, wy, wy2 = self:getCityBounds(city)
+    --         self.miniMap:drawRect(wx, wy, wx2 - wx, wy2 - wy, .3, 0, 1, 0);
+
+    --         if not self.cachedOuterCircle then
+    --             self.cachedOuterCircle = getTexture("media/textures/worldMap/circle_only_highlight.png")
+    --             self.cachedInnerCircle = getTexture("media/textures/worldMap/circle_center.png")
+    --         end
+
+    --         for _, location in ipairs(city.locations) do
+    --             local spawn = self.spawns[location]
+    --             local cx = math.floor(self.miniMap.mapAPI:worldToUIX(spawn.x, spawn.x))
+    --             local cy = math.floor(self.miniMap.mapAPI:worldToUIY(spawn.y, spawn.y))
+    --             self.miniMap:drawTextureScaled(self.cachedOuterCircle, cx, cy, 25, 25, 1, 1, 0, 0);
+    --             self.miniMap:drawTextureScaled(self.cachedInnerCircle, cx, cy, 25, 25, 1, 1, 0, 0);
+    --         end
+    --     end
+
+    -- end
+
+    -- if self.selectedCity then
+
+    --     if not self.cachedOuterCircle then
+    --         self.cachedOuterCircle = getTexture("media/textures/worldMap/circle_only_highlight.png")
+    --         self.cachedInnerCircle = getTexture("media/textures/worldMap/circle_center.png")
+    --     end
+
+    --     for _, location in ipairs(self.selectedCity.locations) do
+    --         local spawn = self.spawns[location]
+    --         local x = math.floor(self.miniMap.mapAPI:worldToUIX(spawn.x, spawn.x))
+    --         local y = math.floor(self.miniMap.mapAPI:worldToUIX(spawn.x, spawn.y))
+    --         self.miniMap:drawTextureScaled(self.cachedOuterCircle, x, y, 25, 25, 1, 1, 0, 0);
+    --         self.miniMap:drawTextureScaled(self.cachedInnerCircle, x, y, 25, 25, 1, 1, 0, 0);
+    --     end
+    -- end
     -- clear the stencil
     self:clearStencilRect()
 
@@ -838,27 +931,63 @@ function PhunSpawnSelectorUI:InitPlayer()
     api:centerOn(api:getMaxXInSquares() / 2, api:getMaxYInSquares() / 2)
 
     function mini:onMouseUp(x, y)
-        ISMiniMapInner.onMouseUp(self, x, y)
+        -- ISMiniMapInner.onMouseUp(self, x, y)
         if mini.dragging then
             mini.dragging = false
             if mini.dragMoved then
                 return
             end
 
-            for k, marker in pairs(mini.parent.cities) do
+            local bounds = {
+                x = mini.mapAPI:uiToWorldX(1, 1),
+                y = mini.mapAPI:uiToWorldY(1, 1),
+                x2 = mini.mapAPI:uiToWorldX(mini.width, mini.width),
+                y2 = mini.mapAPI:uiToWorldY(mini.height, mini.height)
+            }
 
-                if marker.labelX and x >= marker.labelX and x <= (marker.labelX + marker.titleWidth) and y >=
-                    marker.labelY and y <= (marker.labelY + marker.titleHeight) then
-                    return mini.parent:setSelectedCityByKey(k)
+            if mini.mapAPI:getZoomF() >= 15 then
+                -- check if we clicked on a location
+                for k, v in pairs(mini.parent.spawns) do
+                    if v.x >= bounds.x and v.x <= bounds.x2 and v.y >= bounds.y and v.y <= bounds.y2 then
+                        local txt = v.title
+                        local txtWidth = getTextManager():MeasureStringX(UIFont.Small, txt)
+                        local txtHeight = getTextManager():MeasureStringY(UIFont.Small, txt)
+
+                        local wx = mini.mapAPI:worldToUIX(v.x, v.x)
+                        local wy = mini.mapAPI:worldToUIY(v.y, v.y)
+                        local wx2 = wx + txtWidth
+                        local wy2 = wy + txtHeight
+                        if x >= wx and x <= wx2 and y >= wy and y <= wy2 then
+
+                            -- set the city first!
+                            mini.parent:setSelectedCityByKey(v.city)
+                            -- get index of the location
+                            for i, loc in ipairs(mini.parent.selectedCity.locations) do
+                                if loc == k then
+                                    mini.parent:setSelectedLocation(i)
+                                    break
+                                end
+                            end
+                        end
+                    end
+                end
+
+            else
+                for k, marker in pairs(mini.parent.cities) do
+                    if marker.labelX and x >= marker.labelX and x <= (marker.labelX + marker.titleWidth) and y >=
+                        marker.labelY and y <= (marker.labelY + marker.titleHeight) then
+                        return mini.parent:setSelectedCityByKey(k)
+                    end
                 end
             end
+
         end
         self.parent:recalcClusters()
     end
 
     function mini:onMouseWheel(del)
         local res = ISMiniMapInner.onMouseWheel(self, del)
-        self.parent:recalcClusters()
+        -- self.parent:recalcClusters()
         return res
     end
 
