@@ -182,7 +182,7 @@ local function DoSpecialTooltip(tooltip, square)
     DoSpecialTooltip1(tooltip, square)
 end
 
-Events.DoSpecialTooltip.Add(DoSpecialTooltip)
+-- Events.DoSpecialTooltip.Add(DoSpecialTooltip)
 
 local _lastHighlighted = nil
 
