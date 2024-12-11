@@ -2,7 +2,8 @@ PhunSpawn = {
     name = "PhunSpawn",
     consts = {
         spawnpoints = "PhunSpawn_SpawnPoints",
-        discoveries = "PhunSpawn_Discoveries"
+        discoveries = "PhunSpawn_Discoveries",
+        settings = "PhunSpawn_Settings"
     },
     commands = {
         getAllSpawns = "getAllSpawns",

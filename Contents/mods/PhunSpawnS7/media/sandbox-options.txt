@@ -15,3 +15,22 @@ option PhunSpawn.AllowCraftingVents
     page = PhunSpawn,
     translation = PhunSpawn_AllowCraftingVents
 }
+
+
+option PhunSpawn.AutoSpawnVents
+{
+    type = boolean,
+    default = false,
+    page = PhunSpawn,
+    translation = PhunSpawn_AutoSpawnVents
+}
+
+option PhunSpawn.MaxVentsPerChunk
+{
+    type = integer,
+    default = 1,
+    min = 0,
+    max = 100,
+    page = PhunSpawn,
+    translation = PhunSpawn_MaxVentsPerChunk
+}

@@ -14,3 +14,7 @@ Events.OnClientCommand.Add(function(module, command, player, args)
         Commands[command](player, args)
     end
 end)
+
+-- Events.OnSeeNewRoom.Add(function(room)
+--     print("OnSeeNewRoom ", room:getName())
+-- end)

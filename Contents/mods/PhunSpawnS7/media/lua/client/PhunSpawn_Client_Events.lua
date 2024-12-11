@@ -190,6 +190,10 @@ if Events["OnHospitalRoomTeleport"] then
             player:setHaloNote(getText("IGUI_PhunSpawn_NewSpawnHalo" .. halo2), 255, 255, 0, 300);
             player:setHaloNote(getText("IGUI_PhunSpawn_NewSpawnWhereAmI"), 255, 255, 0, 300);
             player:Say(getText("IGUI_PhunSpawn_NewSpawnSay" .. say));
+
+            if PhunStuffUIWelcome then
+                PhunStuffUIWelcome.OnOpenPanel(player:getPlayerNum(), player)
+            end
         end)
     end
 end

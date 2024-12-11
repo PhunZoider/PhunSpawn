@@ -64,8 +64,8 @@ function PhunSpawnSelectorUI.OnOpenPanel(playerObj)
     local core = getCore()
     local FONT_SCALE = getTextManager():getFontHeight(UIFont.Small) / 14
     local core = getCore()
-    local width = 800 * FONT_SCALE
-    local height = 800 * FONT_SCALE
+    local width = 700 * FONT_SCALE
+    local height = 500 * FONT_SCALE
 
     local x = (core:getScreenWidth() - width) / 2
     local y = (core:getScreenHeight() - height) / 2
@@ -426,7 +426,9 @@ function PhunSpawnSelectorUI:exitRoom(destinationTitle, destinationCity, destina
         self:close()
         return
     end
+
     local message = getText("IGUI_PhunSpawn_Confirm_Exit_Room", destinationTitle, destinationCity)
+    self:setVisible(false)
     local w = 300 * FONT_SCALE
     local h = 200 * FONT_SCALE
     local modal = ISModalDialog:new(getCore():getScreenWidth() / 2 - w / 2, getCore():getScreenHeight() / 2 - h / 2, w,
