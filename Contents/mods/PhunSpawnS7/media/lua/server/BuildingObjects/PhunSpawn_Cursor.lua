@@ -26,8 +26,16 @@ function PhunSpawnCursor:create(x, y, z, north, sprite)
     local chunkX, chunkY = math.floor(x / 10), math.floor(y / 10)
     local cellX, cellY = math.floor(x / 300), math.floor(y / 300)
 
-    local city = CPhunSpawnSystem.instance:getDefaultCityName(x, y)
+    -- local room = getWorld():getMetaGrid():getRoomAt(x, y, z)
+
+    local city = CPhunSpawnSystem.instance:getDefaultCityName(x, y) or ""
     local title = chunkX .. ", " .. chunkY
+
+    city = (string.gsub(city, "^%s*(.-)%s*$", "%1"))
+    if #city == 0 then
+        city = title
+    end
+
     local mod = nil
 
     local data = {
@@ -53,6 +61,15 @@ function PhunSpawnCursor:create(x, y, z, north, sprite)
                     data.title = button.parent.entry:getText() or data.title
                     data.description = getText("IGUI_PhunSpawn_PlacedBy", data.owner)
                     CPhunSpawnSystem.instance:createFromData(self.character, data)
+                    self.playerObject:removeFromHands(self.pipeItem);
+                    -- self.playerObject:getInventory():Remove("WaterPipe2");
+
+                    -- --self.sq:AddSpecialObject(self.javaObject);
+                    -- self.sq:AddTileObject(self.javaObject);
+                    -- -- table.insert(WaterPipe.modData.waterPipes.pipes, pipe);
+
+                    -- self.javaObject:transmitCompleteItemToServer();
+                    -- self.javaObject:transmitCompleteItemToClients();
                 end
             end, self.character:getPlayerNum())
         modal:initialise()

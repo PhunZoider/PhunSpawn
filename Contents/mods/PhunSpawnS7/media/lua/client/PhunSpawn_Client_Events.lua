@@ -17,9 +17,24 @@ Events.OnFillInventoryObjectContextMenu.Add(function(playerNum, context, items)
         if item then
             local itemType = item:getType()
             if itemType == "Escape Vent" then
-                context:addOptionOnTop("Place Vent", playerObj, function()
+                local itemContainer = item:getContainer()
+                local t = itemContainer and itemContainer:getType() or nil
+
+                local toolTip = ISToolTip:new();
+                toolTip:setVisible(false);
+                toolTip:setName("Vent");
+                toolTip.description = "Unpack and place to create new spawn point";
+
+                local option = context:addOptionOnTop("Place Vent", playerObj, function()
                     getCell():setDrag(PhunSpawnCursor:new("phunspawn_01_4", true, playerObj), playerNum)
                 end)
+                if t == "none" then
+                    option.notAvailable = false
+                else
+                    toolTip.description = "You need to unpack before you can place";
+                    option.notAvailable = true
+                end
+                option.toolTip = toolTip;
             end
         end
     end
