@@ -145,9 +145,13 @@ function PhunSpawn:doRandomUndiscovered(player)
 end
 
 function PhunSpawn:removeSymbol(x, y)
+    local p = getPlayer() or getSpecificPlayer(0)
+    if not p then
+        return
+    end
     if not ISWorldMap_instance then
-        ISWorldMap.ShowWorldMap(getPlayer())
-        ISWorldMap.HideWorldMap(getPlayer())
+        ISWorldMap.ShowWorldMap(p)
+        ISWorldMap.HideWorldMap(p)
     end
     local index = ISWorldMap_instance.mapAPI:getSymbolsAPI():hitTest(x, y)
     if index > -1 then
