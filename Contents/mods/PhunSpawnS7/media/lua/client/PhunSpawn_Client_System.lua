@@ -141,8 +141,10 @@ end
 function spawnSystem:getDefaultCityName(x, y)
     if PhunZones and PhunZones.getLocation then
         local zone = PhunZones:getLocation(x, y)
-        if zone then
+        if zone and zone.title then
             return zone.title
+        else
+            return "Kentucky"
         end
     end
 
