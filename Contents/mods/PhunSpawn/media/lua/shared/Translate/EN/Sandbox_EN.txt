@@ -1,0 +1,9 @@
+Sandbox_EN = {
+    Sandbox_PhunSpawn = "PhunSpawn",
+
+    Sandbox_PhunSpawn_RespawnHospitalRooms = "Integrate Respawn Hospital Rooms",
+    Sandbox_PhunSpawn_RespawnHospitalRooms_tooltip = "Integrates with Monkeys RHR mod",
+
+    Sandbox_PhunSpawn_AllowCraftingVents = "Allow crafting vents",
+    Sandbox_PhunSpawn_AllowCraftingVents_tooltip = "Allows players to make their own vents (requires restart)",
+}

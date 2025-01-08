@@ -1,0 +1,39 @@
+module PhunSpawn
+{
+	imports
+	{
+		Base
+	}
+
+	item Escape Vent
+	{
+            Weight = 1.0,
+            DisplayName = Escape Vent,
+            Type=Normal,
+	        Icon = PhunSpawn_Vent,
+            DisplayCategory = Furniture,
+            WorldObjectSprite=phunspawn_01_4
+	}
+
+    item Vent Clue
+	{
+
+        Weight = 1.0,
+        Type=Normal,
+        DisplayName = Clue,
+        Icon = PhunSpawn_VentClue,
+
+	}
+
+	recipe Make Escape Vent
+	{
+                keep [Recipe.GetItemTypes.Screwdriver],
+                Base.MetalBar = 10,
+                Base.SmallSheetMetal = 15,
+                CanBeDoneFromFloor:false,
+                Time:400,
+                SkillRequired:Electricity=4;MetalWelding=2,
+                Result: Escape Vent,
+                Category:Electrical,
+	}
+}

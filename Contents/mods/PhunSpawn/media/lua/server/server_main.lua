@@ -1,0 +1,116 @@
+if isClient() then
+    return false
+end
+local fileTools = require("PhunSpawn/files")
+local PS = PhunSpawn
+local cached = nil
+local cachedAll = nil
+local cachedChunked = nil
+
+function PS:getPointsFromFile(points)
+
+    points = points or {}
+    local file = self.consts.spawnpoints .. ".lua"
+    local fromFile = fileTools:loadTable(file)
+    for _, v in ipairs(fromFile) do
+        local key = v.key or self:getKey(v)
+        if v.direction then
+            v.direction = nil
+        end
+        points[key] = v
+    end
+    return points
+end
+
+function PS:getChunk(ckey)
+    if cachedAll == nil then
+        self:getAllSpawnPoints(true)
+    end
+    return cachedChunked[ckey]
+end
+
+function PS:getAllSpawnPoints(reload)
+
+    if cachedAll ~= nil and not reload then
+        return cachedAll
+    end
+
+    local points = {}
+
+    -- add all the hard coded points
+    local defaults = self:defaultPoints()
+    for k, v in pairs(defaults) do
+        v.default = true
+        points[k] = v
+    end
+
+    self:getPointsFromFile(points)
+
+    cachedAll = points
+    return points
+
+end
+
+local function addToChunks(point)
+    if cachedChunked == nil then
+        cachedChunked = {}
+    end
+    local ckey = math.floor(point.x / 10) .. "_" .. math.floor(point.y / 10)
+    if not cachedChunked[ckey] then
+        cachedChunked[ckey] = {}
+    end
+    table.insert(cachedChunked[ckey], {
+        x = point.x,
+        y = point.y,
+        z = point.z
+    })
+end
+
+function PS:getSpawnPoints(reload, doNotFIlterModded)
+
+    if cached ~= nil and not reload then
+        return cached
+    end
+
+    -- load all points
+    local data = self:getAllSpawnPoints(reload)
+
+    local points = {}
+    local forModData = {}
+
+    -- filter out the ones that are not enabled or require mods that are not enabled
+    for key, v in pairs(data) do
+        local process = true
+        if v.mod then
+            process = false
+            local mods = luautils.split(entry.mods .. ";", ";")
+            for _, m in ipairs(mods) do
+                if m and getActivatedMods():contains(m) then
+                    process = true
+                    break
+                end
+            end
+        end
+        if (process or doNotFIlterModded) and v.enabled ~= true then
+            points[key] = v
+            addToChunks(v) -- add to chunk map
+            if v.default ~= true then
+                -- this isn't a harccoded point
+                -- so add to mod data for transmission to clients
+                forModData[key] = v
+            end
+            v.default = nil
+        end
+    end
+
+    ModData.add(self.consts.spawnpoints, forModData)
+
+    cached = points
+    return points
+end
+
+function OnEat_VentClue(food, player, percent)
+    sendServerCommand(player, "PhunSpawn", "OnEat_VentClue", {
+        name = player:getUsername()
+    })
+end

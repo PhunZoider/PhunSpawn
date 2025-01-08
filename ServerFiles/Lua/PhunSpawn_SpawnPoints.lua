@@ -1,3 +1,39 @@
+local points = {
+    ["8133_11542_1"] = { -- rosewood church
+        auto = true
+    },
+    ["9513_6908_0"] = { -- Taylorsville
+        mod = "Taylorsville"
+    },
+    ["3158_7239_0"] = { -- Winchester
+        mod = "Winchester"
+    },
+    ["4112_13310_1"] = { -- RavenCreek
+        mod = "RavenCreek"
+    },
+    ["11970_6944_2"] = { -- westpoint vacant office
+    },
+    ["11097_6709_0"] = { -- Westpoint chapel
+    },
+    ["6557_5374_1"] = { -- Riverside chapel
+    },
+    ["9552_17108_1"] = { -- Irvington Hospital
+        mod = "EerieCountry"
+    },
+    ["3804_12529_1"] = { -- Raven Creek Medical
+        mod = "RavenCreek"
+    },
+    ["4018_9757_0"] = { -- Pineville
+        mod = "pineville"
+    },
+    ["8675_6323_0"] = { -- Coryerdon Apartments
+        mod = "Coryerdon"
+    },
+    ["7213_7460_0"] = { -- Tikitown Autorepair
+        mod = "Tikitown"
+    }
+}
+
 return {{
     city = "Westpoint",
     title = "Vacant office",
