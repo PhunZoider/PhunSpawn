@@ -1,9 +1,8 @@
-title=PhunSpawnS7
-name=PhunSpawnS7
-id=PhunSpawnS7
+title=PhunSpawn
+name=PhunSpawn
+id=phunspawn
 authors=UburGeek
 description=Reworked spawning system
 poster=poster.png
-require=PhunToolsS7
 pack=phunspawn
 tiledef=phunspawn 1532

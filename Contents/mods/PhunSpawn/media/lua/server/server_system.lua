@@ -6,11 +6,11 @@ local fileTools = require("PhunSpawn/files")
 local PS = PhunSpawn
 local Commands = nil
 local objName = "SPhunSpawnSystem"
-local ServerSystem = SGlobalObjectSystem:derive("SPhunSpawnSystem")
-SPhunSpawnSystem = ServerSystem
+local SPhunSpawnSystem = SGlobalObjectSystem:derive("SPhunSpawnSystem")
+local ServerSystem = SPhunSpawnSystem
 
 function ServerSystem:new()
-    local o = ServerSystem.new(self, "phunspawn")
+    local o = SGlobalObjectSystem.new(self, "phunspawn")
     o.data = {
         spawnPoints = ModData.getOrCreate(PS.consts.spawnpoints),
         allSpawnPoints = nil,

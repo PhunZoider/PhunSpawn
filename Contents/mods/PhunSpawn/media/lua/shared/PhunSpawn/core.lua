@@ -3,7 +3,10 @@ PhunSpawn = {
     consts = {
         spawnpoints = "PhunSpawn_SpawnPoints",
         discoveries = "PhunSpawn_Discoveries",
-        settings = "PhunSpawn_Settings"
+        settings = "PhunSpawn_Settings",
+        activated = "PhunSpawn_Activated",
+        modifiedLuaFile = "PhunSpawn_Changes.lua",
+        modifiedData = "PhunSpawn_Modified"
     },
     commands = {
         getAllSpawns = "getAllSpawns",
@@ -23,7 +26,12 @@ PhunSpawn = {
     data = {
         spawnPoints = nil,
         allSpawnPoints = nil,
-        discovered = nil
+        discovered = nil,
+        basePool = nil,
+        modifiedPool = nil,
+        mergedPool = nil,
+        activatedPools = nil,
+        finalised = nil
     },
     system = nil,
     ui = {
