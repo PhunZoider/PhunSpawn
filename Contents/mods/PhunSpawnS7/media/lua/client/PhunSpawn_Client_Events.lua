@@ -79,7 +79,7 @@ Events.OnReceiveGlobalModData.Add(function(key, data)
 
             -- are we outside of map bounds?
             if square:getX() > 19800 and square:getY() > 12000 then
-                return getText("IGUI_PhunSpawn_NoSafehouseHere")
+                -- return getText("IGUI_PhunSpawn_NoSafehouseHere")
             end
 
             return sh(square, player)

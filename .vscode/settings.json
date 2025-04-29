@@ -2,16 +2,130 @@
     "emeraldwalk.runonsave": {
         "autoClearConsole": true,
         "commands": [
+            // del dest
             {
                 "match": ".*",
-                "isAsync": true,
-                "cmd": "xcopy ${workspaceFolder}\\Contents ${env.USERPROFILE}\\Zomboid\\Workshop\\PhunSpawn\\Contents /Y /I /E /F /EXCLUDE:xclude"
+                "cmd": "rmdir /S /Q ${env.USERPROFILE}\\Zomboid\\mods\\PhunSpawn 2>nul"
             },
+            // copy src to dest
             {
-                "match": "Contents\\.*",
-                "isAsync": true,
-                "cmd": "xcopy ${workspaceFolder}\\Contents\\mods ${env.USERPROFILE}\\Zomboid\\mods /Y /I /E /F"
+                "match": ".*",
+                "cmd": "xcopy ${workspaceFolder}\\Contents\\mods ${env.USERPROFILE}\\Zomboid\\mods /Y /I /E /F /EXCLUDE:xclude"
             },
+            // copy src/media/* from dest to dest/42
+            {
+                "match": ".*",
+                "cmd": "xcopy ${workspaceFolder}\\Contents\\mods\\PhunSpawn\\media ${env.USERPROFILE}\\Zomboid\\mods\\PhunSpawn\\42\\media /Y /I /E /F"
+            },
+            // copy src/common to dest/common
+            {
+                "match": ".*",
+                "cmd": "xcopy ${workspaceFolder}\\Contents\\mods\\PhunSpawn\\common ${env.USERPROFILE}\\Zomboid\\mods\\PhunSpawn\\common /Y /I /E /F"
+            },
+            // copy src/mod.info to dest/42/mod.info
+            {
+                "match": ".*",
+                "cmd": "copy ${workspaceFolder}\\Contents\\mods\\PhunSpawn\\42\\mod.info ${env.USERPROFILE}\\Zomboid\\mods\\PhunSpawn\\42\\mod.info /Y"
+            },
+            // copy src/poster to dest/42/poster
+            {
+                "match": ".*",
+                "cmd": "copy ${workspaceFolder}\\Contents\\mods\\PhunSpawn\\poster.png ${env.USERPROFILE}\\Zomboid\\mods\\PhunSpawn\\42\\poster.png /Y"
+            },
+            // copy src/icon to dest/42/icon
+            {
+                "match": ".*",
+                "cmd": "copy ${workspaceFolder}\\Contents\\mods\\PhunSpawn\\icon.png ${env.USERPROFILE}\\Zomboid\\mods\\PhunSpawn\\42\\icon.png /Y"
+            },
+            // remove workshop/*
+            {
+                "match": ".*",
+                "cmd": "rmdir /S /Q ${env.USERPROFILE}\\Zomboid\\Workshop\\PhunSpawn 2>nul"
+            },
+            // copy src to workshop
+            {
+                "match": ".*",
+                "cmd": "xcopy ${workspaceFolder} ${env.USERPROFILE}\\Zomboid\\Workshop\\PhunSpawn /Y /I /E /F /EXCLUDE:xclude"
+            },
+            
+            // copy dest to workshop
+            {
+                "match": ".*",
+                "cmd": "xcopy ${env.USERPROFILE}\\Zomboid\\mods\\PhunSpawn ${env.USERPROFILE}\\Zomboid\\Workshop\\PhunSpawn\\Contents\\mods\\PhunSpawn /Y /I /E /F"
+            },
+            // del pz41
+            {
+                "match": ".*",
+                "cmd": "rmdir /S /Q ${env.USERPROFILE}\\pz41\\mods\\PhunSpawn 2>nul"
+            },
+            // copy dest to pz41
+            {
+                "match": ".*",
+                "cmd": "xcopy ${env.USERPROFILE}\\Zomboid\\mods\\PhunSpawn ${env.USERPROFILE}\\pz41\\mods\\PhunSpawn /Y /I /E /F /EXCLUDE:xclude"
+            },
+
+
+            // del dest
+            {
+                "match": ".*",
+                "cmd": "rmdir /S /Q ${env.USERPROFILE}\\Zomboid\\mods\\PhunSpawnS7 2>nul"
+            },
+            // copy src to dest
+            {
+                "match": ".*",
+                "cmd": "xcopy ${workspaceFolder}\\Contents\\mods\\PhunSpawnS7 ${env.USERPROFILE}\\Zomboid\\mods\\PhunSpawnS7 /Y /I /E /F /EXCLUDE:xclude"
+            },
+            // copy src/media/* from dest to dest/42
+            {
+                "match": ".*",
+                "cmd": "xcopy ${workspaceFolder}\\Contents\\mods\\PhunSpawnS7\\media ${env.USERPROFILE}\\Zomboid\\mods\\PhunSpawnS7\\42\\media /Y /I /E /F"
+            },
+            // copy src/common to dest/common
+            {
+                "match": ".*",
+                "cmd": "xcopy ${workspaceFolder}\\Contents\\mods\\PhunSpawnS7\\common ${env.USERPROFILE}\\Zomboid\\mods\\PhunSpawnS7\\common /Y /I /E /F"
+            },
+            // copy src/mod.info to dest/42/mod.info
+            {
+                "match": ".*",
+                "cmd": "copy ${workspaceFolder}\\Contents\\mods\\PhunSpawnS7\\42\\mod.info ${env.USERPROFILE}\\Zomboid\\mods\\PhunSpawnS7\\42\\mod.info /Y"
+            },
+            // copy src/poster to dest/42/poster
+            {
+                "match": ".*",
+                "cmd": "copy ${workspaceFolder}\\Contents\\mods\\PhunSpawnS7\\poster.png ${env.USERPROFILE}\\Zomboid\\mods\\PhunSpawnS7\\42\\poster.png /Y"
+            },
+            // copy src/icon to dest/42/icon
+            {
+                "match": ".*",
+                "cmd": "copy ${workspaceFolder}\\Contents\\mods\\PhunSpawnS7\\icon.png ${env.USERPROFILE}\\Zomboid\\mods\\PhunSpawnS7\\42\\icon.png /Y"
+            },
+            // remove workshop/*
+            {
+                "match": ".*",
+                "cmd": "rmdir /S /Q ${env.USERPROFILE}\\Zomboid\\Workshop\\PhunSpawnS7 2>nul"
+            },
+            // copy src to workshop
+            {
+                "match": ".*",
+                "cmd": "xcopy ${workspaceFolder} ${env.USERPROFILE}\\Zomboid\\Workshop\\PhunSpawnS7 /Y /I /E /F /EXCLUDE:xclude"
+            },
+            // copy dest to workshop
+            {
+                "match": ".*",
+                "cmd": "xcopy ${env.USERPROFILE}\\Zomboid\\mods\\PhunSpawnS7 ${env.USERPROFILE}\\Zomboid\\Workshop\\PhunSpawnS7\\Contents\\mods\\PhunSpawnS7 /Y /I /E /F"
+            },
+            // del pz41
+            {
+                "match": ".*",
+                "cmd": "rmdir /S /Q ${env.USERPROFILE}\\pz41\\mods\\PhunSpawnS7 2>nul"
+            },
+            // copy dest to pz41
+            {
+                "match": ".*",
+                "cmd": "xcopy ${env.USERPROFILE}\\Zomboid\\mods\\PhunSpawnS7 ${env.USERPROFILE}\\pz41\\mods\\PhunSpawnS7 /Y /I /E /F /EXCLUDE:xclude"
+            }
+                
         ]
     },
     "editor.formatOnSave": true,
