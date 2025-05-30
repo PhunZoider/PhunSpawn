@@ -2,24 +2,14 @@ if isClient() then
     return
 end
 require "Map/SGlobalObjectSystem"
-local fileTools = require("PhunSpawn/files")
-local PS = PhunSpawn
-local Commands = nil
-local objName = "SPhunSpawnSystem"
-local SPhunSpawnSystem = SGlobalObjectSystem:derive("SPhunSpawnSystem")
-local ServerSystem = SPhunSpawnSystem
 
-function ServerSystem:new()
-    local o = SGlobalObjectSystem.new(self, "phunspawn")
-    o.data = {
-        spawnPoints = ModData.getOrCreate(PS.consts.spawnpoints),
-        allSpawnPoints = nil,
-        discovered = ModData.getOrCreate(PS.consts.discoveries),
-        chunkedSpawnPoints = {}
-    }
-    o:loadSpawnPoints()
-    return o
-end
+local Core = PhunSpawn
+local PL = PhunLib
+
+Core.ServerSystem = SGlobalObjectSystem:derive("SPhunSpawnSystem")
+local Commands = require "PhunSpawn/server_commands"
+
+local ServerSystem = Core.ServerSystem
 
 local function isNorth(square)
     return square:getWall(true)
@@ -29,9 +19,59 @@ local function isWest(square)
     return square:getWall(false)
 end
 
+function ServerSystem:new()
+    local o = SGlobalObjectSystem.new(self, "phunspawn")
+    o.data = {
+        spawnPoints = ModData.getOrCreate(Core.consts.spawnpoints),
+        allSpawnPoints = nil,
+        discovered = ModData.getOrCreate(Core.consts.discoveries),
+        chunkedSpawnPoints = {}
+    }
+    o:loadSpawnPoints()
+    return o
+end
+
+function ServerSystem:removeLuaObject(luaObject)
+    Core:removeInstance(luaObject)
+    SGlobalObjectSystem.removeLuaObject(self, luaObject)
+end
+
+function ServerSystem:removeInvalidInstanceData()
+
+    local checked = {}
+    local instanceCount = 0
+    for k, v in pairs(Core.instances) do
+        checked[k] = true
+        instanceCount = instanceCount + 1
+    end
+    local objectCount = 0
+    for i = 1, self:getLuaObjectCount() do
+        local obj = self:getLuaObjectByIndex(i)
+        checked[obj.x .. "_" .. obj.y .. "_" .. obj.z] = nil
+        objectCount = objectCount + 1
+    end
+    local removed = 0
+    for k, v in pairs(checked) do
+        Core.instances[k] = nil
+        removed = removed + 1
+    end
+    print("Removed " .. tostring(removed) .. " invalid instances")
+
+end
+
+function ServerSystem:initSystem()
+    SGlobalObjectSystem.initSystem(self)
+    -- Specify GlobalObjectSystem fields that should be saved.
+    self.system:setModDataKeys({})
+
+    -- Specify GlobalObject fields that should be saved.
+    self.system:setObjectModDataKeys({'id', 'key', 'label', 'direction', 'location', 'sprites'})
+end
+
 function ServerSystem.addToWorld(square, data, direction)
+
     direction = direction or "south"
-    PS:getKey(square)
+    Core:getKey(square)
 
     local isoObject
 
@@ -54,66 +94,15 @@ function ServerSystem.addToWorld(square, data, direction)
     isoObject:transmitCompleteItemToClients()
 end
 
--- local oldOnChunkLoaded = SGlobalObjectSystem.OnChunkLoaded
--- SGlobalObjectSystem.OnChunkLoaded = function(self, wx, wy)
-
---     print("OnChunkLoaded ", wx, wy)
---     local ckey = wx .. "_" .. wy
---     local chunk = PS:getChunk(ckey)
---     if chunk then
---         -- check that chunks spawn points are loaded
---         print("Following spawn points need verification ", ckey)
---         PhunTools:printTable(chunk)
-
---         for _, v in ipairs(chunk) do
---             local sq = getCell():getGridSquare(v.x, v.y, v.z)
---             if sq then
---                 SPhunSpawnSystem.instance:verifyOnLoadSquare(sq)
---             end
---         end
---     end
-
---     return oldOnChunkLoaded(self, wx, wy)
--- end
-
-function ServerSystem:addFromSprite(x, y, z, sprite)
-
-    -- iterate through shops to get the associated shop
-
-    local point = nil
-    local dir = nil
-    -- is there a shop but it is orphaned from the obj?
-    local key = PS:getKey({
-        x = x,
-        y = y,
-        z = z
-    })
-
-end
-
-function ServerSystem:initSystem()
-    SGlobalObjectSystem.initSystem(self)
-    -- Specify GlobalObjectSystem fields that should be saved.
-    self.system:setModDataKeys({})
-    -- Specify GlobalObject fields that should be saved.
-    self.system:setObjectModDataKeys({'id', 'key', 'label', 'direction', 'location', 'sprites'})
-
-end
-
-function ServerSystem:addObject()
-
-end
-
 function ServerSystem:isValidModData(modData)
     return modData and modData.restocked
 end
 
 function ServerSystem:newLuaObject(globalObject)
-    return SPhunSpawnObject:new(self, globalObject)
+    return Core.ServerObject:new(self, globalObject)
 end
 
 function ServerSystem:newLuaObjectAt(x, y, z)
-    self:noise("adding luaObject " .. x .. ',' .. y .. ',' .. z)
     local globalObject = self.system:newObject(x, y, z)
     return self:newLuaObject(globalObject)
 end
@@ -124,35 +113,31 @@ end
 
 function ServerSystem:upsertSpawnPoint(data)
     data.direction = nil
-    local points = PS:getSpawnPoints(true)
-    local key = PS:getKey(data)
+    local modified = PL.file.loadTable(Core.const.modifiedLuaFile) or {}
+    local key = Core:getKey(data)
     data.key = key
-    if not points[key] then
-        -- new spawn point
-        local sq = getCell():getGridSquare(data.x, data.y, data.z)
-        if sq then
-            ServerSystem.addToWorld(sq, data, "south")
-        end
 
-    end
+    local points = Core:getActivatedPoints(false)
+    Core:syncPoints()
+
     points[key] = data
     self.data.allSpawnPoints = points
 
-    local filePoints = PS:getPointsFromFile()
+    local filePoints = Core:getPointsFromFile()
     filePoints[key] = data
 
-    fileTools:saveTable(PS.consts.spawnpoints .. ".lua", filePoints)
+    PL.file.saveTable(Core.consts.spawnpoints .. ".lua", filePoints)
     self:loadSpawnPoints()
 end
 
 function ServerSystem:deleteSpawnPoint(key)
-    local points = PS:getSpawnPoints(true)
+    local points = Core:getSpawnPoints(true)
     points[key] = nil
     self.data.allSpawnPoints = points
-    local filePoints = PS:getPointsFromFile()
+    local filePoints = Core:getPointsFromFile()
     filePoints[key] = data
 
-    fileTools:saveTable(PS.consts.spawnpoints .. ".lua", filePoints)
+    PL.file.saveTable(Core.consts.spawnpoints .. ".lua", filePoints)
     for playerName, discoveries in pairs(self.data.discovered) do
         if discoveries[key] then
             discoveries[key] = nil
@@ -183,8 +168,8 @@ function ServerSystem:getPlayerDiscoveries(player)
 end
 
 function ServerSystem:getSpawnPoint(keyOrObj)
-    local key = PS:getKey(keyOrObj)
-    return PS:getSpawnPoints()[key] or nil
+    local key = Core:getKey(keyOrObj)
+    return Core:getSpawnPoints()[key] or nil
 end
 
 function ServerSystem:verifyOnLoadSquare(square)
@@ -217,9 +202,9 @@ end
 function ServerSystem:loadSpawnPoints()
     self.data.spawnPoints = nil
     self.data.allSpawnPoints = nil
-    local points = PS:getSpawnPoints()
-    ModData.add(PS.consts.spawnpoints, points)
-    ModData.transmit(PS.consts.spawnpoints)
+    local points = Core:getSpawnPoints()
+    ModData.add(Core.consts.spawnpoints, points)
+    ModData.transmit(Core.consts.spawnpoints)
 end
 
 SGlobalObjectSystem.RegisterSystemClass(ServerSystem)

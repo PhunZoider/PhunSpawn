@@ -20,9 +20,7 @@ PhunSpawn = {
 
     },
     events = {},
-    settings = {
-        debug = true
-    },
+    settings = {},
     data = {
         spawnPoints = nil,
         allSpawnPoints = nil,
@@ -39,18 +37,12 @@ PhunSpawn = {
     }
 }
 local Core = PhunSpawn
+Core.isLocal = not isClient() and not isServer() and not isCoopHost()
 Core.settings = SandboxVars[Core.name] or {}
 -- Setup any events
 for _, event in pairs(PhunSpawn.events) do
     if not Events[event] then
         LuaEventManager.AddEvent(event)
-    end
-end
-
-function Core:debug(...)
-    if self.settings.debug then
-        local args = {...}
-        PhunTools:debug(args)
     end
 end
 

@@ -11,7 +11,7 @@ function PS:showContext(playerIndex, context, worldobjects)
     local spawnerObj = nil
     if not clientSystem then
         local c = CPhunSpawnSystem
-        clientSystem = c.instance
+        -- clientSystem = c.instance
     end
 
     for _, w in ipairs(worldobjects) do -- find object to interact with; code support for controllers

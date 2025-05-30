@@ -1,8 +1,9 @@
 if isClient() then
     return false
 end
-local fileTools = require("PhunSpawn/files")
 local PS = PhunSpawn
+local PL = PhunLib
+
 local cached = nil
 local cachedAll = nil
 local cachedChunked = nil
@@ -11,7 +12,7 @@ function PS:getPointsFromFile(points)
 
     points = points or {}
     local file = self.consts.spawnpoints .. ".lua"
-    local fromFile = fileTools:loadTable(file)
+    local fromFile = PL.file.loadTable(file)
     for _, v in ipairs(fromFile) do
         local key = v.key or self:getKey(v)
         if v.direction then

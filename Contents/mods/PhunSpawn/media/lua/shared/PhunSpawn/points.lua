@@ -1,10 +1,9 @@
 local PS = PhunSpawn
 local PZ = PhunZones
+local PL = PhunLib
 require "PhunSpawn/core"
 
-local tableTools = require("PhunZones/table")
-local fileTools = require("PhunZones/files")
-local allLocations = require("PhunZones/data")
+local allLocations = require("PhunSpawn/data")
 
 local getActivatedMods = getActivatedMods
 
@@ -29,7 +28,7 @@ local function getRow(modId, data, omitMods)
     if process then
         local results = {}
         -- to preserve the original data, we copy the entry
-        local copy = tableTools:shallowCopyTable(data)
+        local copy = PL.table.shallowCopyTable(data)
         for k, v in pairs(copy) do
             if v.enabled ~= true then
                 results[k] = {
@@ -65,7 +64,7 @@ end
 
 function PS:getModifiedPools(omitMods)
 
-    local data = fileTools:loadTable(self.const.modifiedLuaFile) or {}
+    local data = PL.file.loadTable(self.const.modifiedLuaFile) or {}
     ModData.add(self.const.modifiedData, data)
     ModData.transmit()
 
@@ -88,7 +87,7 @@ end
 function PS:getMergedPools(omitMods, modifiedDataSet)
     local core = self:getBasePoints(omitMods)
     local modified = modifiedDataSet or self:getModifiedPoints(omitMods)
-    local results = tableTools:mergeTables(core or {}, modified or {})
+    local results = PL.table.mergeTables(core or {}, modified or {})
     return results
 end
 
@@ -132,12 +131,29 @@ function PS:getActivatedPoints(omitMods)
 
 end
 
+function PS:syncPoints()
+
+    local activatedPoints = self:getActivatedPoints(true)
+    for k, v in pairs(activatedPoints) do
+        local sq = getCell():getGridSquare(v.x, v.y, v.z)
+        if sq then
+            -- is there already an object here?
+            local obj = sq:getObjects():find("PhunSpawn")
+            if not obj then
+                -- remove the object
+                PS.ServerSystem.addToWorld(sq, v, "south")
+            end
+        end
+    end
+
+end
+
 function PS:addModifiedPoint(key, index)
-    local data = fileTools:loadTable(self.const.modifiedLuaFile) or {}
+    local data = PL.file.loadTable(self.const.modifiedLuaFile) or {}
     data[key] = data[key] or {}
     data[key][index] = data[key][index] or {}
     data[key][index].enabled = true
-    fileTools:saveTable(self.const.modifiedLuaFile, data)
+    PL.file.saveTable(self.const.modifiedLuaFile, data)
     ModData.add(self.const.modifiedData, data)
     ModData.transmit()
 end
@@ -150,7 +166,7 @@ function PS:activatePointByKey(key)
 end
 
 function PS:convertOldPoints()
-    local data = fileTools:loadTable("PhunSpawn_Modified.lua") or {}
+    local data = PL.file.loadTable("PhunSpawn_Modified.lua") or {}
     local pools = self:getMergedPools(false)
     local result = {}
     local fakeKeys = {}
