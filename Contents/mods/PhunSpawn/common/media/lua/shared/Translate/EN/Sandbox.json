@@ -1,0 +1,24 @@
+{
+    "Sandbox_PhunSpawn": "PhunSpawn",
+
+    "Sandbox_PhunSpawn_Debug": "Debug",
+    "Sandbox_PhunSpawn_Debug_tooltip": "Verbose logging for point registration, discovery and spawning",
+
+    "Sandbox_PhunSpawn_UseSpawnRoom": "Wake Up Indoors",
+    "Sandbox_PhunSpawn_UseSpawnRoom_tooltip": "If yes, a new character wakes up in an off grid arrival room rather than on the spawn square, so the first thirty seconds are theirs. Needs PhunInteriors; with it absent the character is placed at the point itself",
+
+    "Sandbox_PhunSpawn_DiscoveryRadius": "Discovery Range",
+    "Sandbox_PhunSpawn_DiscoveryRadius_tooltip": "How close you have to get to a spawn point before you remember it. Larger means more found by accident",
+
+    "Sandbox_PhunSpawn_ShowUndiscovered": "Show Undiscovered Points",
+    "Sandbox_PhunSpawn_ShowUndiscovered_tooltip": "If yes, places you have not found are listed greyed out, so the list is somewhere to head for. If no, they are not sent to your client at all",
+
+    "Sandbox_PhunSpawn_AllowBuiltPoints": "Allow Player Spawn Points",
+    "Sandbox_PhunSpawn_AllowBuiltPoints_tooltip": "If yes, a player may mark a place of their own as somewhere to wake up",
+
+    "Sandbox_PhunSpawn_BuiltPointLimit": "Player Spawn Point Limit",
+    "Sandbox_PhunSpawn_BuiltPointLimit_tooltip": "How many a character may hold at once. Set to 0 for no limit",
+
+    "Sandbox_PhunSpawn_RespawnPenalty": "Respawn Costs Something",
+    "Sandbox_PhunSpawn_RespawnPenalty_tooltip": "If yes, choosing where to wake up costs the new character something. Off by default"
+}

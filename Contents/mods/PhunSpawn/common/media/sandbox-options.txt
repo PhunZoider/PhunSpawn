@@ -1,0 +1,61 @@
+VERSION = 1,
+
+option PhunSpawn.Debug
+{
+    type = boolean,
+    default = false,
+    page = PhunSpawn,
+    translation = PhunSpawn_Debug,
+}
+
+option PhunSpawn.UseSpawnRoom
+{
+    type = boolean,
+    default = true,
+    page = PhunSpawn,
+    translation = PhunSpawn_UseSpawnRoom,
+}
+
+option PhunSpawn.DiscoveryRadius
+{
+    type = integer,
+    default = 12,
+    min = 1,
+    max = 200,
+    page = PhunSpawn,
+    translation = PhunSpawn_DiscoveryRadius,
+}
+
+option PhunSpawn.ShowUndiscovered
+{
+    type = boolean,
+    default = false,
+    page = PhunSpawn,
+    translation = PhunSpawn_ShowUndiscovered,
+}
+
+option PhunSpawn.AllowBuiltPoints
+{
+    type = boolean,
+    default = true,
+    page = PhunSpawn,
+    translation = PhunSpawn_AllowBuiltPoints,
+}
+
+option PhunSpawn.BuiltPointLimit
+{
+    type = integer,
+    default = 3,
+    min = 0,
+    max = 99,
+    page = PhunSpawn,
+    translation = PhunSpawn_BuiltPointLimit,
+}
+
+option PhunSpawn.RespawnPenalty
+{
+    type = boolean,
+    default = false,
+    page = PhunSpawn,
+    translation = PhunSpawn_RespawnPenalty,
+}

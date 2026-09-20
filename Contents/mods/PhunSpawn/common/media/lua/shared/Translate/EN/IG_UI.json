@@ -1,0 +1,10 @@
+{
+    "IGUI_PhunSpawn_Discovered": "You will remember this place: %1",
+    "IGUI_PhunSpawn_ChoiceSet": "You will wake up at %1",
+    "IGUI_PhunSpawn_NotDiscovered": "You have not found that place yet",
+    "IGUI_PhunSpawn_NoSuchPoint": "That place is no longer on the map",
+    "IGUI_PhunSpawn_BuiltPointsOff": "This server does not allow you to mark your own spawn points",
+    "IGUI_PhunSpawn_BuiltPointLimit": "You are already remembering as many places as you can",
+    "IGUI_PhunSpawn_PickerTitle": "Where do you wake up?",
+    "IGUI_PhunSpawn_Undiscovered": "Not yet found"
+}

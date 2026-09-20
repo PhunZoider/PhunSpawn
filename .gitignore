@@ -1,0 +1,11 @@
+# GIMP and editor sources for icon.png and poster.png. Large, regenerable by
+# export, and of no use to anyone cloning the repo. xclude keeps them out of
+# the Workshop staging trees for the same reason.
+Docs/images/
+*.xcf
+
+# Scratch backups left by the tile and map editors. xclude also drops these,
+# so a stray one cannot reach a Workshop build.
+*.bak
+*.orig
+*.tmp

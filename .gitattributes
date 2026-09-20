@@ -1,0 +1,10 @@
+# Anything binary a map or tileset brings in later. Nothing here ships one
+# yet, and this is in place from the start because git's binary detection is a
+# heuristic over the first 8000 bytes: a lotpack silently rewritten by line
+# ending conversion is close to undiagnosable.
+*.lotpack   binary
+*.lotheader binary
+*.bin       binary
+*.pack      binary
+*.tiles     binary
+*.xcf       binary
