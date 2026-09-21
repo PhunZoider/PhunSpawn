@@ -30,9 +30,8 @@ Events.OnFillWorldObjectContextMenu.Add(function(playerIndex, context, worldObje
 
     context:addOption(getText("ContextMenu_PhunSpawn_CheckHere"), player, onCheckHere)
 
-    -- Admin only, for now, because the picker is not built and an option that
-    -- prints to the console is not something to put in front of a player.
-    if Core.tools and Core.tools.isAdmin and Core.tools.isAdmin(player) then
-        context:addOption(getText("ContextMenu_PhunSpawn_Points"), player, onOpenPicker)
-    end
+    -- For everybody. It is how a new character who closed the picker gets it
+    -- back, and for everyone else it is a map of what they know; whether the
+    -- spawn button works is the server's decision, not this menu's.
+    context:addOption(getText("ContextMenu_PhunSpawn_Points"), player, onOpenPicker)
 end)

@@ -34,6 +34,12 @@ PhunSpawn = {
         -- Where this character last chose to wake up, so the picker opens on
         -- it rather than on the top of the list.
         lastChoiceKey = "PhunSpawn_lastChoice",
+        -- Whether this character has been placed yet, on the PLAYER. See
+        -- server/placement.lua: nil is "not looked at", "pending" is a new
+        -- character still choosing, and a number is when they were placed.
+        -- Kept beside the unlocks for the same reason: a character who
+        -- rejoins must not be offered a second free choice.
+        spawnedKey = "PhunSpawn_spawned",
         -- Durable id of a point a player BUILT, written into the object's
         -- modData. Inside movableData rather than at the top level, because
         -- vanilla drops a top level key on pickup for some object classes and
@@ -48,6 +54,10 @@ PhunSpawn = {
         points = "points",
         -- client -> server: "wake me up here next time"
         choose = "choose",
+        -- client -> server: "put me at this point now". Carries a point id,
+        -- which the server checks against the character's own unlocks and
+        -- against whether they may still choose at all.
+        spawn = "spawn",
         -- server -> client: "you just found one", so the client can say so
         unlocked = "unlocked",
         -- client -> server: "I am standing on a point, count it as found".
@@ -75,7 +85,11 @@ PhunSpawn = {
         -- A character unlocked a point. Carries (player, point).
         OnPointUnlocked = "PhunSpawnOnPointUnlocked",
         -- A character was spawned at one. Carries (player, point).
-        OnSpawned = "PhunSpawnOnSpawned"
+        OnSpawned = "PhunSpawnOnSpawned",
+        -- CLIENT side: a fresh points payload has landed in Client.points.
+        -- Carries the payload. The picker's list redraws on it, so a point
+        -- found while the window is open shows up without reopening it.
+        OnPointsReceived = "PhunSpawnOnPointsReceived"
     },
     -- Registry, populated by points.lua and by other mods on the register
     -- event.

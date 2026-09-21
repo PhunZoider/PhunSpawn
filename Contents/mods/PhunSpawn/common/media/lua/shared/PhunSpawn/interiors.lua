@@ -59,19 +59,32 @@ function Core.registerRooms()
     end
 
     PhunInteriors.registerRoom(Core.roomIds.arrival, {
-        size = {w = 3, h = 4},
-        spawn = {1, 1},
-        -- No `front` and no `cab`. Those say which way a HOLDER points, and
-        -- this room has no holder: the way out is the door, and the tenant
-        -- lands back where they came in, which is what the entrance position
-        -- in PhunInteriors is for.
-        --
-        -- No `generator` either, and that is deliberate rather than an
-        -- omission. A nil generator means no power, which for an arrival room
-        -- is correct: there is no battery to charge it against. Giving it a
-        -- default position would conjure a generator on the roof of every
-        -- stamp, which cost PhunInteriors a debugging session.
-        locations = {}
+        label = "Spawn",
+        source = "phunspawn",
+        size = {
+            w = 9,
+            h = 10
+        },
+        spawn = {
+            x = 4,
+            y = 7
+        },
+        selfPowered = true,
+        generator = {
+            x = 13,
+            y = -6,
+            z = 1
+        },
+        locations = {
+            [0] = {22276, 12565, 0}
+        }
+    })
+
+    PhunInteriors.registerVehicles({
+        id = "phunspawn.vehicles.Spawn",
+        source = "phunspawn",
+        rooms = {"phun.spawn.arrival"},
+        scripts = {"Base.CarTaxi"}
     })
 
     return true

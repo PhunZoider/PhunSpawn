@@ -165,6 +165,73 @@ function Core.pointsInRegion(region)
     return out
 end
 
+--- A points payload, grouped by region for the picker.
+--
+-- Takes the list Unlocks.payloadFor sends rather than the registry, because
+-- the payload is what a client is allowed to know: an undiscovered point in it
+-- has no coordinates, and grouping the registry instead would hand the picker
+-- positions the server deliberately withheld.
+--
+-- Returns an array of
+--   {name, points, known, total, bounds}
+-- where `bounds` is {x1, y1, x2, y2} over the KNOWN points only, and nil when
+-- the region has none. A region of nothing but undiscovered points still gets
+-- a row, because "there is something in West Point" is exactly what
+-- ShowUndiscovered is for; it just has nowhere to zoom to.
+--
+-- Sorted by name, case insensitively, with the unnamed region last. The
+-- points inside each keep the payload's order, which is already the stable
+-- (priority, label, id) sort.
+function Core.groupByRegion(points)
+    local byName, out = {}, {}
+    for _, point in ipairs(points or {}) do
+        local name = point.region or ""
+        local group = byName[name]
+        if not group then
+            group = {
+                name = name,
+                points = {},
+                known = 0,
+                total = 0
+            }
+            byName[name] = group
+            table.insert(out, group)
+        end
+        table.insert(group.points, point)
+        group.total = group.total + 1
+        if point.known and point.x and point.y then
+            group.known = group.known + 1
+            local b = group.bounds
+            if not b then
+                group.bounds = {
+                    x1 = point.x,
+                    y1 = point.y,
+                    x2 = point.x,
+                    y2 = point.y
+                }
+            else
+                b.x1 = math.min(b.x1, point.x)
+                b.y1 = math.min(b.y1, point.y)
+                b.x2 = math.max(b.x2, point.x)
+                b.y2 = math.max(b.y2, point.y)
+            end
+        end
+    end
+    table.sort(out, function(a, b)
+        if (a.name == "") ~= (b.name == "") then
+            return b.name == ""
+        end
+        local al, bl = a.name:lower(), b.name:lower()
+        if al ~= bl then
+            return al < bl
+        end
+        -- Names are unique keys, so this is only "West Point" against
+        -- "west point", and it still has to answer the same way every time.
+        return a.name < b.name
+    end)
+    return out
+end
+
 --- The point nearest a position, and how far away it is.
 --
 -- Squared distance throughout, so nothing needs a square root to answer

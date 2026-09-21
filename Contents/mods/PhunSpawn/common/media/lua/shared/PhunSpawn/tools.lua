@@ -4,10 +4,9 @@ local Core = PhunSpawn
 -- ---------------------------------------------------------------------------
 -- Local utility surface.
 --
--- These were previously borrowed from PhunLib. PhunLib is deprecated and this
--- mod carries no hard dependency, so they are folded in here, matching what
--- PhunInteriors, PhunServer2 and PhunZones2 already do. Do not reintroduce a
--- dependency to get them back.
+-- These were previously borrowed from PhunLib. PhunLib is deprecated, so they
+-- are folded in here, matching what PhunInteriors, PhunServer2 and PhunZones2
+-- already do. Do not reintroduce a PhunLib dependency to get them back.
 --
 -- Keep this file to things that genuinely have no vanilla equivalent. It is
 -- not a dumping ground.

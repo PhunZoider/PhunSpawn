@@ -6,7 +6,7 @@ A character starts knowing the few places the save gives them and finds the
 rest by walking the map. A new character wakes up in an off grid arrival room
 rather than on a kerb, so the first thirty seconds are theirs.
 
-Part of the Phun mod family. No hard dependencies.
+Part of the Phun mod family. Requires PhunInteriors.
 
 ## Status
 
@@ -62,10 +62,11 @@ account wide list would hand the second character a map that is already solved.
 
 ## The arrival room
 
-Optional, and a soft hook rather than a dependency. `mod.info` carries no
-`require` line, every call into PhunInteriors is guarded, and with it absent
-the mod is a spawn point picker that puts you on the square. That is a real
-fallback and not a broken feature.
+PhunInteriors is a hard dependency. The arrival room is one of its off grid
+rooms, the cell uses its tiles, and a player leaving the room for the point
+they picked goes out through its exit (`PhunInteriors.sendTo`). So the room's
+lease and "Step outside" are cleared properly, and zombies are pushed off the
+landing square when you arrive.
 
 The room is registered with **no binding**. A PhunInteriors binding says which
 vehicles or objects may lease a room, and nothing leases this one: a spawn room
@@ -111,11 +112,12 @@ the one to use because it is the one nobody can get wrong.
 
 ```
 Contents/mods/PhunSpawn/common/
-  mod.info                  id=phunspawn, versionMin=42.0.0, no require line
+  mod.info                  id=phunspawn, versionMin=42.0.0, require=phuninteriors
   media/sandbox-options.txt
   media/lua/shared/PhunSpawn/    core, tools, points, interiors, defaults
-  media/lua/server/PhunSpawn/    unlocks, server_{commands,events}
+  media/lua/server/PhunSpawn/    unlocks, placement, server_{commands,events}
   media/lua/client/PhunSpawn/    client_{main,commands,context,events}
+  media/lua/client/PhunSpawn/ui/ picker, map_panel, list_panel, ui_utils
   media/lua/shared/Translate/EN/ ContextMenu.json, IG_UI.json, Sandbox.json
 
 Tests/run.sh              syntax check, static checks and specs
@@ -158,10 +160,14 @@ Workshop upload staging for each. `xclude` is the xcopy exclude list.
 
 Marked `TODO` where each belongs:
 
-- **The picker.** `Client.openPicker` prints to the console. When it is built,
-  vendor PhunMart2's `ui/base/list_panel.lua` and `form_panel.lua`, the way
-  PhunInteriors did: somebody running several Phun mods should not have to
-  learn a second kind of list to do the same job.
+- **The picker has never been opened in game.** It is written: cities on the
+  left, which open to show their points and fit the map to them, and the
+  player's own map on the right with a pin per known point. A new character
+  gets the whole map, since theirs is still blank. The "Wake up here" button
+  works **once**, for a new character, so it is a choice and not fast travel;
+  after that the picker is a map. An admin on a server, or anyone in single
+  player debug mode, can use it any time. It ignores a point's `room`, does
+  not check that the spawn square is free, and has no joypad support.
 - **Built points.** `Commands.buildPoint` is a stub. The design constraint is
   known: object modData does **not** survive a pickup reliably, and whether it
   does depends on which tile was clicked. So either the marker refuses to be

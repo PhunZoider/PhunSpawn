@@ -102,7 +102,10 @@ end
 --- A stand-in player: a username and a modData table that persists for the
 --- length of the test. Enough for everything the unlock layer does, and
 --- deliberately not enough for anything that reads a square.
-function stubs.player(name)
+---
+--- `hours` is how long the character has survived, which is how placement.lua
+--- tells a new character from an established one. Defaults to 0, a new one.
+function stubs.player(name, hours)
     local md = {}
     local x, y, z = 0, 0, 0
     return {
@@ -111,6 +114,7 @@ function stubs.player(name)
         getX = function() return x end,
         getY = function() return y end,
         getZ = function() return z end,
+        getHoursSurvived = function() return hours or 0 end,
         moveTo = function(nx, ny, nz) x, y, z = nx, ny, nz or 0 end
     }
 end

@@ -5,6 +5,7 @@ require "PhunSpawn/points"
 require "PhunSpawn/tools"
 local Core = PhunSpawn
 local Unlocks = require "PhunSpawn/unlocks"
+local Placement = require "PhunSpawn/placement"
 local Commands = {}
 
 -- ---------------------------------------------------------------------------
@@ -16,12 +17,27 @@ local Commands = {}
 -- a convenience, not a permission.
 -- ---------------------------------------------------------------------------
 
-Commands[Core.commands.playerSetup] = function(player, args)
-    Unlocks.load(player)
+--- Everything the picker draws from, in one message.
+--
+-- One builder for every sender, so the flags cannot come to mean different
+-- things depending on which handler answered. `canSpawn` is only ever a hint
+-- for the button: the spawn handler asks Placement again rather than trusting
+-- that the client still has it right.
+local function sendPoints(player)
     Core.respond(player, Core.commands.points, {
         points = Unlocks.payloadFor(player),
-        last = player:getModData()[Core.consts.lastChoiceKey]
+        last = player:getModData()[Core.consts.lastChoiceKey],
+        pending = Placement.isPending(player),
+        canSpawn = Placement.canSpawn(player)
     })
+end
+
+-- Also the picker's "refresh", sent whenever it opens. Loading the cache
+-- again is cheap and idempotent, and it is what makes a point found by the
+-- timed sweep, which only announces itself, appear in the list.
+Commands[Core.commands.playerSetup] = function(player, args)
+    Unlocks.load(player)
+    sendPoints(player)
 end
 
 --- "I am standing on a point, count it as found."
@@ -40,9 +56,7 @@ Commands[Core.commands.discover] = function(player, args)
         id = point.id,
         label = point.label
     })
-    Core.respond(player, Core.commands.points, {
-        points = Unlocks.payloadFor(player)
-    })
+    sendPoints(player)
 end
 
 --- "Wake me up here next time."
@@ -69,6 +83,82 @@ Commands[Core.commands.choose] = function(player, args)
         text = "IGUI_PhunSpawn_ChoiceSet",
         arg = Core.points[id].label
     })
+end
+
+--- "Put me at this point now."
+--
+-- The same two refusals as choose, then the one that matters: whether this
+-- character may still choose at all. See placement.lua for why that is once,
+-- for a new character, and never on demand.
+--
+-- The move itself is PhunInteriors.sendTo, and never a teleport of our own.
+-- A new character is normally standing in the arrival room, and a bare
+-- teleport out of a room leaves PhunInteriors believing they are still in
+-- it: the occupancy, the lease, the leash and the client's "Step outside"
+-- all stay behind. sendTo is a real exit with the destination replaced, and
+-- it pushes zombies off the landing square once the player arrives. The
+-- room is released, because nobody comes back to their arrival room.
+Commands[Core.commands.spawn] = function(player, args)
+    local id = args and args.id
+    local point = id and Core.points[id]
+    if not point then
+        Core.respond(player, Core.commands.notify, {
+            text = "IGUI_PhunSpawn_NoSuchPoint"
+        })
+        return
+    end
+    if not Unlocks.has(player, id) then
+        Core.respond(player, Core.commands.notify, {
+            text = "IGUI_PhunSpawn_NotDiscovered"
+        })
+        return
+    end
+    if not Placement.canSpawn(player) then
+        Core.respond(player, Core.commands.notify, {
+            text = "IGUI_PhunSpawn_AlreadyPlaced"
+        })
+        return
+    end
+
+    -- A hard dependency, so this is only ever missing when PhunInteriors is
+    -- older than this mod. Said loudly: failing quietly here is a new
+    -- character stuck in the arrival room with a button that does nothing.
+    if not (PhunInteriors and PhunInteriors.sendTo) then
+        Core.logLn("PhunInteriors.sendTo is missing; PhunInteriors is older than this version of PhunSpawn needs")
+        Core.respond(player, Core.commands.notify, {
+            text = "IGUI_PhunSpawn_CannotGoThere"
+        })
+        return
+    end
+
+    -- TODO: point.room is ignored. A point that wakes you inside a
+    -- PhunInteriors room needs that room leased and the character put in it,
+    -- which is not built.
+    local ok, why = PhunInteriors.sendTo(player, {
+        x = point.x,
+        y = point.y,
+        z = point.z
+    }, "phunspawn", true)
+    if not ok then
+        -- Before anything is stamped, so a refused spawn leaves the choice
+        -- open rather than using it up on a move that never happened.
+        Core.logLn("spawn at " .. id .. " refused by PhunInteriors: " .. tostring(why))
+        Core.respond(player, Core.commands.notify, {
+            text = "IGUI_PhunSpawn_CannotGoThere"
+        })
+        return
+    end
+
+    Placement.markSpawned(player)
+    player:getModData()[Core.consts.lastChoiceKey] = id
+    Core.respond(player, Core.commands.notify, {
+        text = "IGUI_PhunSpawn_WokeUp",
+        arg = point.label
+    })
+    triggerEvent(Core.events.OnSpawned, player, point)
+    Core.debugLn(tostring(Core.playerKey(player)) .. " spawned at " .. id)
+    -- So the picker, if it is still open anywhere, stops offering the button.
+    sendPoints(player)
 end
 
 --- "Put a point of mine on the map here."

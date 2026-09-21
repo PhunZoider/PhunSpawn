@@ -6,5 +6,23 @@
     "IGUI_PhunSpawn_BuiltPointsOff": "This server does not allow you to mark your own spawn points",
     "IGUI_PhunSpawn_BuiltPointLimit": "You are already remembering as many places as you can",
     "IGUI_PhunSpawn_PickerTitle": "Where do you wake up?",
-    "IGUI_PhunSpawn_Undiscovered": "Not yet found"
+    "IGUI_PhunSpawn_PickerTitleKnown": "Places you know",
+    "IGUI_PhunSpawn_Undiscovered": "Not yet found",
+    "IGUI_PhunSpawn_AlreadyPlaced": "You have already chosen where to wake up",
+    "IGUI_PhunSpawn_WokeUp": "You wake up at %1",
+    "IGUI_PhunSpawn_CannotGoThere": "You cannot get there right now",
+
+    "IGUI_PhunSpawn_Lbl_Filter": "Filter",
+    "IGUI_PhunSpawn_Btn_Close": "Close",
+    "IGUI_PhunSpawn_Btn_Spawn": "Wake up here",
+    "IGUI_PhunSpawn_Col_Place": "Place",
+    "IGUI_PhunSpawn_Col_Known": "Known",
+    "IGUI_PhunSpawn_Elsewhere": "Elsewhere",
+    "IGUI_PhunSpawn_Desc_Loading": "Remembering...",
+    "IGUI_PhunSpawn_Desc_Nothing": "You do not know anywhere yet.",
+    "IGUI_PhunSpawn_Desc_Pending": "Pick a town, then a place in it. You only get to choose once.",
+    "IGUI_PhunSpawn_Desc_Known": "The places you have found.",
+    "IGUI_PhunSpawn_Tip_AlreadyPlaced": "You have already woken up. This is a map of the places you know.",
+    "IGUI_PhunSpawn_Confirm_Spawn": "Wake up at %1? You only get to choose once.",
+    "IGUI_PhunSpawn_Confirm_Port": "Go to %1?"
 }

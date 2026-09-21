@@ -14,7 +14,8 @@ PhunZones, PhunInteriors, PhunMart2, PhunHub, PhunServer2...). GitHub org:
 **Scaffolding. Nothing has run in game.** `Tests/run.sh` is green, which is
 real verification of the registry and the unlock logic and no verification at
 all that PZ agrees. What exists is the registry, the unlock bookkeeping, the
-dispatch layer, the context menu and the translations. What does not is
+dispatch layer, the context menu, the picker (see Known gaps 5) and the
+translations. What does not is
 listed under "Not built" in README.md, and each one is marked `TODO` at the
 place it belongs.
 
@@ -64,11 +65,13 @@ folder.
 
 ```
 Contents/mods/PhunSpawn/common/
-  mod.info                  id=phunspawn, versionMin=42.0.0, no require line
+  mod.info                  id=phunspawn, versionMin=42.0.0, require=phuninteriors
   media/sandbox-options.txt
   media/lua/shared/PhunSpawn/   core, tools, points, interiors, defaults
-  media/lua/server/PhunSpawn/   unlocks, server_{commands,events}
+  media/lua/server/PhunSpawn/   unlocks, placement, server_{commands,events}
   media/lua/client/PhunSpawn/   client_{main,commands,context,events}
+  media/lua/client/PhunSpawn/ui/  picker, map_panel, list_panel (vendored),
+                                  ui_utils
   media/lua/shared/Translate/EN/  ContextMenu.json, IG_UI.json, Sandbox.json
 
 Tests/run.sh               syntax check, static checks and specs
@@ -148,10 +151,19 @@ is slow.
 coordinates can draw them whatever the option says, so an option enforced only
 in the UI is not enforced at all.
 
-**The arrival room is a soft hook and never a dependency.** `mod.info` carries
-no `require` line and every call into PhunInteriors is guarded. With it absent
-the mod is a spawn point picker that puts you on the square, which is a real
-fallback rather than a broken feature.
+**PhunInteriors is a hard dependency** (`require=phuninteriors`, and
+`phuninteriorstest` for the test id). This mod uses its off grid room, its
+map instancing, its tiles and textures (see `Docs/map.md`) and its way of
+moving a player, so there is no working mode without it. Older code and
+comments that guard for it being absent are from when it was a soft hook.
+
+**Moving a player is `PhunInteriors.sendTo`, never a teleport of our own.**
+A bare teleport out of a room leaves PhunInteriors believing the player is
+still in it: occupancy, lease, leash and the client's "Step outside" all stay
+behind. `sendTo` is PhunInteriors' own exit with the destination replaced,
+and it pushes zombies off the landing square once the player's client
+reports the arrival. It lives in PhunInteriors' `server/transit.lua` and is
+covered by that repo's `sendto_spec.lua`.
 
 The room registers with **no binding**. A PhunInteriors binding says which
 vehicles or objects may *lease* a room, and nothing leases this one: a spawn
@@ -188,12 +200,21 @@ dedicated server does not have.
    on which tile was clicked. So either the marker refuses to be picked up, or
    a built point must not depend on its modData surviving one. See the tent
    pickup rows in PhunInteriors' API table before designing this.
-5. **The picker is a stub.** When it is built, vendor PhunMart2's
-   `ui/base/list_panel.lua` and `form_panel.lua` rather than writing new ones.
-   Note the trap that already cost PhunInteriors a session: `FormPanel` calls
-   `self._onApply(self)` and passes the **form**, not a values table, and
-   getting that wrong drops every field silently while numeric ones keep
-   working.
+5. **The picker is written and has never been opened.** `client/.../ui/`:
+   `picker.lua` is the window and an accordion list (click a city to open it
+   and fit the map to it), `map_panel.lua` is a bare `UIWorldMap` set up call
+   for call from `ISWorldMap:initDataAndStyle`, and `list_panel.lua` is
+   PhunMart2's panel vendored via PhunInteriors' copy. `form_panel.lua` was
+   **not** vendored because nothing here is a form; if one is ever added, the
+   trap is that `FormPanel` calls `self._onApply(self)` and passes the
+   **form**, not a values table. Unproven in game, in order of risk:
+   `uiToWorldX(x, y, zoom, cx, cy)` as the zoom-to-fit probe, `transitionTo`,
+   pins drawn in `render` (not `prerender`) landing above the map, and the
+   list column headers. The spawn button is once only per character
+   (`server/.../placement.lua`, stamped in modData under `spawnedKey`), and
+   rests on the same unproven dedicated server modData write as gap 1.
+   `point.room` is ignored, the spawn square is not checked for being free,
+   and there is no joypad support.
 6. **`icon.png` and `poster.png` are missing.** `mod.info` names both, and
    `Tests/root/PhunSpawn/common/` needs its own pair for the test id.
 7. **`workshop.txt` has an empty `id=`.** Fill on first publish.
