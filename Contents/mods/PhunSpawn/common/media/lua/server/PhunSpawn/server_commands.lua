@@ -10,6 +10,7 @@ local PhoneSwap = require "PhunSpawn/phone_swap"
 local Store = require "PhunSpawn/store"
 local Rides = require "PhunSpawn/rides"
 local Building = require "PhunSpawn/building"
+local Arrival = require "PhunSpawn/arrival"
 local Commands = {}
 
 -- ---------------------------------------------------------------------------
@@ -39,24 +40,14 @@ end
 -- Also the picker's "refresh", sent whenever it opens. Loading the cache
 -- again is cheap and idempotent, and it is what makes a point found by the
 -- timed sweep, which only announces itself, appear in the list.
+--
+-- And the server's first sight of a new character, so it is where one is put
+-- in the arrival room: after the load, because where they fall back to is
+-- read off their unlocks, and before the points go out, because a fallback
+-- uses up the choice the payload reports.
 Commands[Core.commands.playerSetup] = function(player, args)
     Unlocks.load(player)
-    sendPoints(player)
-end
-
---- "I am standing on a point, count it as found."
---
--- Carries a square and nothing else. The server reads the point off the
--- position rather than taking a point id from the client, which is the same
--- direction PhunInteriors' entry path takes and for the same reason: a
--- position can be checked against where the player actually is, and an id
--- cannot be checked against anything.
-Commands[Core.commands.discover] = function(player, args)
-    local point = Unlocks.checkDiscovery(player)
-    if not point then
-        return
-    end
-    Core.respond(player, Core.commands.unlocked, PhoneSwap.announcement(point))
+    Arrival.admit(player)
     sendPoints(player)
 end
 

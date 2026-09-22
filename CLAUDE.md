@@ -72,9 +72,9 @@ Contents/mods/PhunSpawn/common/
   mod.info                  id=phunspawn, versionMin=42.0.0, require=phuninteriors
   media/sandbox-options.txt
   media/lua/shared/PhunSpawn/   core, tools, points, phones, phone_guards, taxi,
-                                interiors, defaults
-  media/lua/server/PhunSpawn/   unlocks, placement, phone_swap, store, rides,
-                                building, server_{commands,events}
+                                interiors, zones, defaults
+  media/lua/server/PhunSpawn/   unlocks, placement, arrival, phone_swap, store,
+                                rides, building, server_{commands,events}
   media/lua/client/PhunSpawn/   client_{main,commands,context,events,phone,
                                 admin}
   media/lua/client/PhunSpawn/ui/  picker, editor, map_panel, list_panel (vendored),
@@ -91,6 +91,10 @@ Tests/lua/store_spec.lua   PhunSpawn.json: the wipe round trip, bad files,
                            ../PhunInteriors (or $PHUNINTERIORS).
 Tests/lua/taxi_spec.lua    near discovery, fares, rides and every refusal,
                            safehouses, building and taking down phones
+Tests/lua/arrival_spec.lua who is put in the arrival room, the fallback when
+                           there is no room, and the regions collapsing
+Tests/lua/zones_spec.lua   the Taxi Garage zone: its flags, and its rect
+                           against the cell and objects.lua
 Tests/root/PhunSpawn/      overlay carrying the test id. The path must mirror
                            the live mod folder or the overlay silently does
                            nothing.
@@ -228,6 +232,20 @@ vehicles or objects may *lease* a room, and nothing leases this one: a spawn
 room is entered by being a new character, which is a different question from
 the entitlement machinery and must not be squeezed into it.
 
+**A new character is put in the room by the server, not by the vanilla
+selector** (`server/arrival.lua`). On `playerSetup`, a pending character is
+handed to `PhunInteriors.enterRoom` with `share = true` (a server may have one
+spawn room, and two new characters in it beats one refused) and `exit = false`
+(the taxi is the only way out, so there is no "Step outside" to walk off with a
+free choice). Where vanilla put them only matters for a moment, which is why
+collapsing the vanilla regions to one landing square (`OnSpawnRegionsLoaded`,
+so the selector skips itself) is tidiness and not the mechanism. The landing
+square must be outside every slot: PhunInteriors puts anybody standing in a
+slot with no lease back outside. With no room to be had, the character is
+placed at their fallback point and their choice is used, as `UseSpawnRoom`'s
+tooltip promises. The room is `singleUse`, so PhunInteriors, which knows who
+is last out, hands it back.
+
 **Register from `Events.OnInitGlobalModData`, never from one of PhunInteriors'
 own events.** `Events` is a plain Kahlua table with no metatable, so a key
 exists only once `LuaEventManager.AddEvent` has been called for it. If our
@@ -343,3 +361,29 @@ dedicated server does not have.
    Nothing checks that an added point's square is free, so it carries gap
    2's risk: the admin clicked it, which is better evidence than a
    placeholder has, and is still not proof.
+11. **The Taxi Garage zone has never been read by PhunZones in game.**
+   `shared/.../zones.lua` adds it, at load and only when `phunzones2` or
+   `phunzones2test` is active, to the table `require "PhunZones/data"`
+   returns: the whole of cell 87,49, zeds removed, and no safehouse,
+   building, placing, pickup, scrap or sledgehammer. A soft hook: without
+   PhunZones the cell is still zombie free by its lotheader. Unproven: that
+   B42's `require` hands us the same table PhunZones' `core.lua` and
+   `process.lua` hold, which the whole hook rests on. An admin setting up the
+   garage is blocked like anyone else unless PhunZones' "Staff ignore zone
+   restrictions" is on. PhunZones also names the garage as the region of
+   any phone inside it.
+12. **The arrival room has run once, on a server.** A new character was put
+   in the garage by `PhunInteriors.enterRoom`. The picker no longer opens by
+   itself: a pending character gets a pulsing line over the taxi instead
+   (`client/.../client_taxi.lua`, drawn with `isoToScreenX/Y` on
+   `OnPreUIDraw`), and opens the picker from the taxi's context menu.
+   `Arrival.landing` is the middle of cell 87,49, unchecked for open floor, so
+   the vanilla regions collapse to it and the selector should skip itself; the
+   collapse reads the sandbox option directly because the server may build its
+   regions before the settings cache is filled. Unproven, in order of risk:
+   that the collapsed table reaches clients (`GameServer` calls
+   `getSpawnRegions` and clients read `getServerSpawnRegions()`, and it fires
+   `OnSpawnRegionsLoaded` only where `not isClient()`); that the landing
+   square is floor; the hint's height over the taxi (`LIFT`). Single player's
+   selector runs in the main menu before any server file loads, so it is never
+   collapsed there.

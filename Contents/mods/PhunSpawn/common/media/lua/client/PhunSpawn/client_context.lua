@@ -15,15 +15,10 @@ local Client = Core.client
 -- ---------------------------------------------------------------------------
 -- The context menu.
 --
--- One option, and it is a request rather than an action: "look at where I am
--- standing". Everything it might unlock is decided server side, so the worst
--- a player can do by spamming it is ask a question the server answers with
--- no.
+-- Every option is a request rather than an action. Whatever it asks for is
+-- decided server side, so the menu offering something is a convenience and
+-- never a permission.
 -- ---------------------------------------------------------------------------
-
-local function onCheckHere()
-    Client.requestDiscovery()
-end
 
 local function onOpenPicker()
     Client.openPicker()
@@ -247,8 +242,6 @@ Events.OnFillWorldObjectContextMenu.Add(function(playerIndex, context, worldObje
     else
         addBuildOption(player, context, worldObjects)
     end
-
-    context:addOption(getText("ContextMenu_PhunSpawn_CheckHere"), player, onCheckHere)
 
     -- The picker. For a player it is the taxi: offered only on a taxi tile,
     -- which stands in the spawn room, so a new character takes a ride out.

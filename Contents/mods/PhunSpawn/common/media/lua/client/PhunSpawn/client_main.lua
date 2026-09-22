@@ -25,10 +25,6 @@ Client.lastChoice = nil
 -- server asks again when the button is pressed.
 Client.pending = false
 Client.canSpawn = false
--- The picker opens by itself once per session for a new character, and never
--- again after that: a player who closes it has decided to, and the context
--- menu is how they get it back.
-Client.autoOpened = false
 
 --- A fresh picture of what this character knows.
 --
@@ -43,11 +39,10 @@ function Client.receivePoints(arguments)
     Client.pending = arguments and arguments.pending == true
     Client.canSpawn = arguments and arguments.canSpawn == true
 
-    -- The flag goes up BEFORE opening. Opening asks the server for a fresh
-    -- payload, and in single player that answer arrives inside this call.
-    if Client.pending and not Client.autoOpened then
-        Client.autoOpened = true
-        Client.openPicker()
+    -- A new character is pointed at the taxi rather than handed the picker:
+    -- the ride is something they walk up to. See client_taxi.lua.
+    if Client.pending and Client.watchTaxi then
+        Client.watchTaxi()
     end
 
     triggerEvent(Core.events.OnPointsReceived, Client.points)
@@ -85,14 +80,6 @@ function Client.announceUnlock(arguments)
     if phone and Client.ringPhone then
         Client.ringPhone(phone.x, phone.y, phone.z, FOUND_RING_MS)
     end
-end
-
---- Ask the server to look at where we are standing.
---
--- Sends a request and no claim. The server reads the position off the player
--- itself, so there is nothing in the message to take on trust.
-function Client.requestDiscovery()
-    Core.dispatch(Core.commands.discover, {})
 end
 
 --- Use the pay phone at `phone`'s square. Sends the square and nothing else;

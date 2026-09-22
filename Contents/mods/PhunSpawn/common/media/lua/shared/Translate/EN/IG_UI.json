@@ -6,6 +6,7 @@
     "IGUI_PhunSpawn_BuiltPointsOff": "This server does not let players build pay phones",
     "IGUI_PhunSpawn_BuiltPointLimit": "You already have %1 pay phones standing",
     "IGUI_PhunSpawn_PickerTitle": "Available Destinations",
+    "IGUI_PhunSpawn_TaxiOnTheHouse": "Hop on in, this one is on the house",
     "IGUI_PhunSpawn_Undiscovered": "Not yet found",
     "IGUI_PhunSpawn_AlreadyPlaced": "You have already chosen where to wake up",
     "IGUI_PhunSpawn_WokeUp": "You wake up at %1",

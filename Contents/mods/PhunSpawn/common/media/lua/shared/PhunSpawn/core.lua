@@ -79,11 +79,6 @@ PhunSpawn = {
         spawn = "spawn",
         -- server -> client: "you just found one", so the client can say so
         unlocked = "unlocked",
-        -- client -> server: "I am standing on a point, count it as found".
-        -- Carries a square and nothing else. The server reads the point off
-        -- the position rather than taking a point id from a client, the same
-        -- way PhunInteriors names a position and never an identity.
-        discover = "discover",
         -- client -> server: "build a pay phone from this kit on this square,
         -- facing this way". Carries the square, the facing and the kit's
         -- item id; the server checks all three.

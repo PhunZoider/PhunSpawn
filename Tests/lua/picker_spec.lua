@@ -31,6 +31,10 @@ local function reset()
     Core.data = {}
     Core.saved = {points = {}, phones = {}, labels = {}}
     Core.indexesBuilt = false
+    -- The picker's own flow, with nobody put in an arrival room first:
+    -- playerSetup would otherwise place a new character at a fallback point
+    -- before the button is ever pressed. arrival_spec.lua covers that.
+    Core.settings.UseSpawnRoom = false
 end
 
 -- Every response the server sends, in order, instead of a client.

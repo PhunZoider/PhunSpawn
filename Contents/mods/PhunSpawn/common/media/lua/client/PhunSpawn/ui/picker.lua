@@ -430,15 +430,38 @@ function Picker:onListRefreshed()
     end
 end
 
---- Open on the last choice if it is still known, else fit everything known.
-function Picker:placeInitialView()
+--- The point the window opens on: the last choice if this list still has it
+--- and it is still known, else the first known point in list order. Nil when
+--- nothing on the list is known. In a taxi the last choice may be the phone
+--- being called from, which is not on the list, so it falls through.
+function Picker:initialPoint()
     local last = Client.lastChoice
     if last then
-        local point = self.list:selectPointId(last)
-        if point and point.known then
-            self:onPointSelected(point, true)
-            return
+        for _, point in ipairs(self:rows() or {}) do
+            if point.id == last and point.known then
+                return point
+            end
         end
+    end
+    for _, group in ipairs(self.list.groups or {}) do
+        for _, point in ipairs(group.points) do
+            if point.known then
+                return point
+            end
+        end
+    end
+    return nil
+end
+
+--- Open on a point, its city expanded and the map on it, so a player who
+--- only wants the obvious choice has nothing to do but press the button.
+--- With nothing known, fit everything on the list instead.
+function Picker:placeInitialView()
+    local point = self:initialPoint()
+    if point then
+        self.list:selectPointId(point.id)
+        self:onPointSelected(point, true)
+        return
     end
     local all
     for _, group in ipairs(self.list.groups or {}) do

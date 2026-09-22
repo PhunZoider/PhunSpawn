@@ -11,6 +11,7 @@ local Commands = require "PhunSpawn/server_commands"
 local Unlocks = require "PhunSpawn/unlocks"
 local PhoneSwap = require "PhunSpawn/phone_swap"
 local Store = require "PhunSpawn/store"
+local Arrival = require "PhunSpawn/arrival"
 
 local started = false
 
@@ -57,6 +58,11 @@ Events.OnInitGlobalModData.Add(start)
 Events.OnServerStarted.Add(start)
 
 Events.LoadGridsquare.Add(PhoneSwap.loadGridsquare)
+
+-- Declared by the engine (LuaEventManager), so the key exists whatever order
+-- the files load in. See arrival.lua for why this is tidiness and not the
+-- mechanism.
+Events.OnSpawnRegionsLoaded.Add(Arrival.collapseRegions)
 
 Events.OnClientCommand.Add(function(module, command, player, arguments)
     if module == Core.name and Commands[command] then

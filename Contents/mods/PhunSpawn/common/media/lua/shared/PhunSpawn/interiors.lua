@@ -70,6 +70,11 @@ function Core.registerRooms()
             y = 7
         },
         selfPowered = true,
+        -- Handed back when the last person in it leaves, by any route.
+        -- Nobody comes back to their arrival room, and with the room shared
+        -- when full (server/arrival.lua) PhunInteriors, not us, knows who
+        -- is last.
+        singleUse = true,
         generator = {
             x = 13,
             y = -6,

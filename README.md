@@ -124,6 +124,13 @@ vehicles or objects may lease a room, and nothing leases this one: a spawn room
 is entered by being a new character, which is a different question from the
 entitlement machinery and must not be squeezed into it.
 
+A new character is put in the room by the server the first time it sees them,
+whatever the vanilla spawn selector said: a free slot if there is one, and a
+share of an occupied one if not, so one spawn room is enough for a server.
+There is no "Step outside"; the taxi is the way out. With **Wake Up Indoors**
+off, or no room to be had, the character is placed at the last point the
+player chose, or a start point they know, and that is their one choice used.
+
 ## The admin editor
 
 An admin or moderator opens the **Spawn point editor** from the admin panel,
@@ -316,6 +323,10 @@ Marked `TODO` where each belongs:
   a map. An admin on a server, or anyone in single player debug mode, can use
   it any time. It ignores a point's `room`, does
   not check that the spawn square is free, and has no joypad support.
+- **Nobody is put in the arrival room yet.** `server/arrival.lua` waits on
+  `PhunInteriors.enterRoom`, which is not in PhunInteriors yet; until it is,
+  a new character is placed at their fallback point. The landing square the
+  vanilla selector collapses to is not chosen, so the selector still shows.
 - **The arrival room's `locations`.** The room registers with no stamps,
   because there is no map yet. A room with no stamps allocates nothing, which
   is the honest state of affairs.

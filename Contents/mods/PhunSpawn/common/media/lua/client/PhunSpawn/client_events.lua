@@ -8,6 +8,7 @@ require "PhunSpawn/phone_guards"
 require "PhunSpawn/defaults"
 require "PhunSpawn/client_main"
 require "PhunSpawn/client_context"
+require "PhunSpawn/client_taxi"
 local Core = PhunSpawn
 local Commands = require "PhunSpawn/client_commands"
 
