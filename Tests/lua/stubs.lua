@@ -79,13 +79,63 @@ function stubs.install(root)
     local uuids = 0
     function getRandomUUID() uuids = uuids + 1; return "uuid-" .. uuids end
 
+    -- The Lua folder, where the store file lives. getFileWriter TRUNCATES on
+    -- open, as the real one does: store.lua encodes before it opens the file
+    -- precisely because of that, and a stub that appended instead would let a
+    -- regression past. Copied from PhunInteriors' stubs.
+    stubs.files = {}
+    function getFileWriter(name, createIfNotExists, append)
+        if not append then
+            stubs.files[name] = ""
+        elseif stubs.files[name] == nil then
+            if not createIfNotExists then return nil end
+            stubs.files[name] = ""
+        end
+        return {
+            write = function(_, text) stubs.files[name] = (stubs.files[name] or "") .. text end,
+            close = function() end
+        }
+    end
+
+    function getFileReader(name, createIfNotExists)
+        if stubs.files[name] == nil then
+            if not createIfNotExists then return nil end
+            stubs.files[name] = ""
+        end
+        -- Line at a time, the way the real reader hands it over.
+        local rest = stubs.files[name]
+        local done = false
+        return {
+            readLine = function()
+                if done or rest == nil then return nil end
+                local line, tail = rest:match("^([^\n]*)\n(.*)$")
+                if line then
+                    rest = tail
+                    return line
+                end
+                done = true
+                if rest == "" then return nil end
+                return rest
+            end,
+            close = function() end
+        }
+    end
+
     -- The mod's own require, resolving "PhunSpawn/x" against the three source
-    -- trees the game merges into one.
-    local lua = root .. "/Contents/mods/PhunSpawn/common/media/lua/"
+    -- trees the game merges into one. "PhunInteriors/x" resolves against a
+    -- PhunInteriors checkout beside this one, since it is a hard dependency
+    -- and its json is used rather than copied; PHUNINTERIORS points it
+    -- elsewhere.
+    local trees = {
+        PhunSpawn = root .. "/Contents/mods/PhunSpawn/common/media/lua/",
+        PhunInteriors = (os.getenv("PHUNINTERIORS") or (root .. "/../PhunInteriors")) ..
+            "/Contents/mods/PhunInteriors/common/media/lua/"
+    }
     local loaded = {}
     function require(path)
         if loaded[path] then return loaded[path] end
         loaded[path] = true
+        local lua = trees[path:match("^([^/]+)/")] or trees.PhunSpawn
         for _, dir in ipairs({"shared/", "server/", "client/"}) do
             local file = lua .. dir .. path .. ".lua"
             local fh = io.open(file, "r")
@@ -95,21 +145,33 @@ function stubs.install(root)
                 return loaded[path]
             end
         end
-        error("no module " .. path)
+        error("no module " .. path .. " (looked in " .. lua .. ")")
     end
 end
 
---- A stand-in player: a username and a modData table that persists for the
---- length of the test. Enough for everything the unlock layer does, and
---- deliberately not enough for anything that reads a square.
+--- A stand-in player: a username, a player number, and a modData table that
+--- persists for the length of the test. Calling this again with a name already
+--- used is a NEW character of the same player: fresh modData, same account.
+--- Enough for everything the unlock layer does, and deliberately not enough
+--- for anything that reads a square.
 ---
 --- `hours` is how long the character has survived, which is how placement.lua
 --- tells a new character from an established one. Defaults to 0, a new one.
+local playerNums, nextPlayerNum = {}, 0
 function stubs.player(name, hours)
     local md = {}
+    -- One number per NAME, so two characters of one player share it the way
+    -- they share an account: a character built again under the same name is
+    -- that player coming back after dying. Single player keys unlocks on it.
+    if not playerNums[name] then
+        playerNums[name] = nextPlayerNum
+        nextPlayerNum = nextPlayerNum + 1
+    end
+    local num = playerNums[name]
     local x, y, z = 0, 0, 0
     return {
         getUsername = function() return name end,
+        getPlayerNum = function() return num end,
         getModData = function() return md end,
         getX = function() return x end,
         getY = function() return y end,

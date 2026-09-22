@@ -7,11 +7,17 @@ local Core = PhunSpawn
 local Unlocks = {}
 
 -- ---------------------------------------------------------------------------
--- What a character knows about.
+-- What a player knows about.
 --
--- The truth is a table in the character's own modData, keyed by point id.
--- Core.unlocked is a server side cache of it, rebuilt on login, so a lookup
--- does not reach into the character record every time somebody moves.
+-- The truth is one record per ACCOUNT in global ModData, keyed by
+-- Core.accountKey: {unlocked = {pointId = true}, lastChoice = pointId}.
+-- Core.unlocked is a server side cache of the unlocked half, keyed the same
+-- way and rebuilt on login, so a lookup does not reach into ModData every
+-- time somebody moves.
+--
+-- Per account because an unlock is only worth anything at the moment of
+-- choosing where to wake up, and that moment belongs to the NEXT character.
+-- See consts.accountsKey.
 --
 -- Server side because it is the authority. A client that simply declines to
 -- run the discovery check must still not be able to pick a point it has not
@@ -19,19 +25,59 @@ local Unlocks = {}
 -- copy is only ever for drawing.
 -- ---------------------------------------------------------------------------
 
-local function record(player)
+--- The account record, created on first use.
+--
+-- Also where the per character lists of older versions come home. Anything a
+-- character's modData still holds is folded in and then cleared, so it is
+-- read once and a later character on the same account inherits it. Cleared
+-- rather than kept as a second copy, because two lists that each look like
+-- the truth will disagree.
+local function account(player)
+    local key = Core.accountKey(player)
+    Core.data[Core.consts.accountsKey] = Core.data[Core.consts.accountsKey] or {}
+    local accounts = Core.data[Core.consts.accountsKey]
+    local rec = accounts[key]
+    if not rec then
+        rec = {unlocked = {}}
+        accounts[key] = rec
+    end
+    rec.unlocked = rec.unlocked or {}
+
     local md = player:getModData()
-    md[Core.consts.unlockedKey] = md[Core.consts.unlockedKey] or {}
-    return md[Core.consts.unlockedKey]
+    local legacy = md[Core.consts.unlockedKey]
+    if legacy then
+        for id in pairs(legacy) do
+            rec.unlocked[id] = true
+        end
+        md[Core.consts.unlockedKey] = nil
+    end
+    if md[Core.consts.lastChoiceKey] then
+        rec.lastChoice = rec.lastChoice or md[Core.consts.lastChoiceKey]
+        md[Core.consts.lastChoiceKey] = nil
+    end
+    return rec
 end
 
---- Load a character's list into the cache and return it.
+local function record(player)
+    return account(player).unlocked
+end
+
+--- Where this player last chose to wake up, or nil.
+function Unlocks.lastChoice(player)
+    return account(player).lastChoice
+end
+
+function Unlocks.setLastChoice(player, pointId)
+    account(player).lastChoice = pointId
+end
+
+--- Load a player's list into the cache and return it.
 --
 -- Points that no longer exist are filtered on READ rather than deleted, which
--- is why removePoint does not have to walk every character. Removing a point
+-- is why removePoint does not have to walk every account. Removing a point
 -- set temporarily and putting it back costs nobody their exploring.
 function Unlocks.load(player)
-    local key = Core.playerKey(player)
+    local key = Core.accountKey(player)
     if not key then
         return {}
     end
@@ -55,7 +101,7 @@ function Unlocks.load(player)
 end
 
 function Unlocks.has(player, pointId)
-    local key = Core.playerKey(player)
+    local key = Core.accountKey(player)
     if not key then
         return false
     end
@@ -84,7 +130,7 @@ function Unlocks.grant(player, pointId)
     end
 
     record(player)[pointId] = true
-    local key = Core.playerKey(player)
+    local key = Core.accountKey(player)
     Core.unlocked[key] = Core.unlocked[key] or {}
     Core.unlocked[key][pointId] = true
 
@@ -98,7 +144,7 @@ function Unlocks.revoke(player, pointId)
         return false
     end
     record(player)[pointId] = nil
-    local key = Core.playerKey(player)
+    local key = Core.accountKey(player)
     if Core.unlocked[key] then
         Core.unlocked[key][pointId] = nil
     end
@@ -109,20 +155,27 @@ end
 --- found it? Returns the point that was unlocked, or nil.
 --
 -- Squared distance against a squared radius, so nothing needs a square root.
+--
+-- Explore points always, within DiscoveryRadius. Pay phones only when
+-- PhoneDiscoverRadius is above zero, and it is meant to be small: it stands
+-- in for walking up to the phone, not for passing the street it is on. A
+-- phone's point is the square in front of it, so the radius is measured from
+-- where a caller would stand.
 function Unlocks.checkDiscovery(player)
     if not player then
         return nil
     end
-    local point, distance = Core.nearestPoint(player:getX(), player:getY(), player:getZ())
-    if not point or point.discovery ~= Core.discovery.explore then
-        return nil
+    local x, y, z = player:getX(), player:getY(), player:getZ()
+    local kinds = {{Core.discovery.explore, Core.settings.DiscoveryRadius or 0}}
+    local phoneRadius = Core.settings.PhoneDiscoverRadius or 0
+    if phoneRadius > 0 then
+        table.insert(kinds, {Core.discovery.used, phoneRadius})
     end
-    local radius = Core.settings.DiscoveryRadius or 0
-    if distance > (radius * radius) then
-        return nil
-    end
-    if Unlocks.grant(player, point.id) then
-        return point
+    for _, kind in ipairs(kinds) do
+        local point, distance = Core.nearestPoint(x, y, z, kind[1])
+        if point and distance <= (kind[2] * kind[2]) and Unlocks.grant(player, point.id) then
+            return point
+        end
     end
     return nil
 end
@@ -134,17 +187,25 @@ end
 -- ShowUndiscovered says so. That is not tidiness: a client that is handed the
 -- position can draw it whatever the option says, so the option has to be
 -- honoured on this side or it is not honoured at all.
+--
+-- A pay phone nobody has used is left out even when ShowUndiscovered is on.
+-- ShowUndiscovered makes the list somewhere to head for, and a phone is not a
+-- destination: there can be hundreds, each one is only a phone, and a row per
+-- phone would bury the places that are.
 function Unlocks.payloadFor(player)
     local live = Unlocks.load(player)
     local out = {}
     for _, point in ipairs(Core.sortedPoints()) do
         local known = live[point.id] == true
-        if known or Core.settings.ShowUndiscovered then
+        if known or (Core.settings.ShowUndiscovered and point.discovery ~= Core.discovery.used) then
             table.insert(out, {
                 id = point.id,
                 label = point.label,
                 region = point.region,
                 known = known,
+                -- A pay phone, so the taxi can list only phones. Only ever
+                -- true on a known point, since an unused phone is left out.
+                phone = point.discovery == Core.discovery.used or nil,
                 x = known and point.x or nil,
                 y = known and point.y or nil,
                 z = known and point.z or nil

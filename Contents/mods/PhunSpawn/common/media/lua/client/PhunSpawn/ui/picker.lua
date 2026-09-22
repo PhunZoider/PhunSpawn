@@ -28,6 +28,10 @@ local MapPanel = require "PhunSpawn/ui/map_panel"
 --
 -- Whether the button does anything is the server's call (placement.lua).
 -- Client.canSpawn only decides whether it is drawn enabled.
+--
+-- The same window is the taxi between phones (Picker.open with a phone):
+-- the rows narrow to the other phones this character knows, and Go carries
+-- the fare. The server works the fare out again and charges that.
 -- ---------------------------------------------------------------------------
 
 local FONT_SCALE = tools.FONT_SCALE
@@ -94,6 +98,11 @@ function PointList:createChildren()
     })
 
     self.spawnButton = self:addBottomButton(getText("IGUI_PhunSpawn_Btn_Spawn"), self.onSpawnClick, false)
+    -- Vanilla's green, as PhunInteriors' form Apply does. Guarded the same
+    -- way, since it is a method on ISButton and not on every build's.
+    if self.spawnButton.enableAcceptColor then
+        self.spawnButton:enableAcceptColor()
+    end
 end
 
 function PointList:getFilterText(d)
@@ -107,7 +116,7 @@ end
 --- vendored panel (UI.refresh), so a fresh payload redraws an open window.
 function PointList:refreshList()
     self:clearList()
-    self.groups = Core.groupByRegion(Client.points or {})
+    self.groups = Core.groupByRegion(self.picker:rows() or {})
     self.groupsByName = {}
     for _, group in ipairs(self.groups) do
         self.groupsByName[group.name] = group
@@ -136,6 +145,9 @@ function PointList:refreshList()
 
     if Client.points == nil then
         self.description = getText("IGUI_PhunSpawn_Desc_Loading")
+    elseif self.picker.taxi then
+        self.description = getText(#self.groups == 0 and "IGUI_PhunSpawn_Desc_TaxiNothing" or
+                                       "IGUI_PhunSpawn_Desc_Taxi")
     elseif #self.groups == 0 then
         self.description = getText("IGUI_PhunSpawn_Desc_Nothing")
     elseif Client.pending then
@@ -208,7 +220,7 @@ end
 --- Select a point by id, opening its city. Used by a click on a map pin and
 --- by the window opening on the last choice.
 function PointList:selectPointId(id)
-    for _, point in ipairs(Client.points or {}) do
+    for _, point in ipairs(self.picker:rows() or {}) do
         if point.id == id then
             local name = point.region or ""
             if self.expanded ~= name then
@@ -227,6 +239,27 @@ function PointList:prerender()
     -- After the base, which sets enable on buttons that require a selection;
     -- this one requires more than that and decides for itself.
     local point = self:selectedPoint()
+    local taxi = self.picker.taxi
+
+    -- In a taxi the button says what the ride costs. The server works the
+    -- fare out again from the same sum and charges that; this is the quote.
+    local title = getText("IGUI_PhunSpawn_Btn_Spawn")
+    local fare = taxi and point and point.known and self.picker:fareTo(point)
+    if fare and fare > 0 then
+        title = getText("IGUI_PhunSpawn_Btn_GoFare", Core.formatCents(fare))
+    end
+    if self.spawnButton.title ~= title then
+        self.spawnButton:setTitle(title)
+        if self.spawnButton.setWidthToTitle then
+            self.spawnButton:setWidthToTitle()
+        end
+    end
+
+    if taxi then
+        self.spawnButton:setEnable(point ~= nil and point.known == true)
+        self.spawnButton.tooltip = nil
+        return
+    end
     local enabled = point ~= nil and point.known and Client.canSpawn
     self.spawnButton:setEnable(enabled)
     if point and point.known and not Client.canSpawn then
@@ -238,6 +271,19 @@ end
 
 function PointList:onSpawnClick()
     local point = self:selectedPoint()
+    local taxi = self.picker and self.picker.taxi
+    if taxi then
+        if not point or not point.known then
+            return
+        end
+        local picker = self.picker
+        tools.confirm(getText("IGUI_PhunSpawn_Confirm_Taxi", point.label, Core.formatCents(picker:fareTo(point))),
+            function()
+                Client.taxi(taxi, point.id)
+                picker:close()
+            end, self)
+        return
+    end
     if not point or not point.known or not Client.canSpawn then
         return
     end
@@ -268,17 +314,31 @@ Core.ui.picker = Picker
 -- One per split screen player, by player number.
 Picker.instances = {}
 
-function Picker.open(player)
+--- Open the picker. With `taxi` ({x, y, z, fx, fy}: a phone's square and the
+--- one in front of it) it is a taxi from that phone: only the other phones
+--- this character knows, each with its fare. Without, it is the spawn
+--- picker (or, for an admin, a map).
+function Picker.open(player, taxi)
     if not player then
         return nil
     end
     local index = player:getPlayerNum()
     local instance = Picker.instances[index]
+    if instance and (instance.taxi ~= nil) ~= (taxi ~= nil) then
+        -- Changing between taxi and picker: a different set of rows, so
+        -- nothing open or placed carries over.
+        instance.list.expanded = nil
+        instance.viewPlaced = false
+    end
+    if instance then
+        instance.taxi = taxi
+    end
     if not instance then
         local core = getCore()
         local w = math.min(core:getScreenWidth() - 40, math.floor(1000 * FONT_SCALE))
         local h = math.min(core:getScreenHeight() - 40, math.floor(640 * FONT_SCALE))
         instance = Picker:new((core:getScreenWidth() - w) / 2, (core:getScreenHeight() - h) / 2, w, h, player)
+        instance.taxi = taxi
         instance:initialise()
         instance:addToUIManager()
         Picker.instances[index] = instance
@@ -326,18 +386,45 @@ function Picker:createChildren()
     self:addChild(self.list)
 end
 
+--- The rows this window shows. The whole payload, or in a taxi only the
+--- phones this character knows, less the one they are calling from.
+function Picker:rows()
+    if not self.taxi or not Client.points then
+        return Client.points
+    end
+    local here = Core.phonePointId(self.taxi.x, self.taxi.y, self.taxi.z)
+    local out = {}
+    for _, point in ipairs(Client.points) do
+        if point.known and point.phone and point.id ~= here then
+            table.insert(out, point)
+        end
+    end
+    return out
+end
+
+--- The fare from the phone this taxi was called from to `point`, in cents.
+--- From the square in front of the phone, which is where the server
+--- measures from.
+function Picker:fareTo(point)
+    if not self.taxi or not point or not point.x then
+        return 0
+    end
+    return Core.taxiFare(self.taxi.fx or self.taxi.x, self.taxi.fy or self.taxi.y, point.x, point.y)
+end
+
 --- The list has new rows. Keep the map's pins and highlight in step, and
 --- place the view the first time there is anything to place it on.
 function Picker:onListRefreshed()
     if not self.map then
         return
     end
-    self.map:setPoints(Client.points)
+    self.map:setPoints(self:rows())
     local point = self.list:selectedPoint()
     self.map:setSelected(point and point.id or nil, self.list.expanded)
-    self.title = getText(Client.pending and "IGUI_PhunSpawn_PickerTitle" or "IGUI_PhunSpawn_PickerTitleKnown")
+    self.title = getText("IGUI_PhunSpawn_PickerTitle")
 
-    if not self.viewPlaced and Client.points and #Client.points > 0 then
+    local rows = self:rows()
+    if not self.viewPlaced and rows and #rows > 0 then
         self.viewPlaced = true
         self:placeInitialView()
     end

@@ -2,6 +2,7 @@ if isServer() then
     return
 end
 require "PhunSpawn/client_main"
+require "PhunSpawn/client_phone"
 local Core = PhunSpawn
 local Client = Core.client
 local Commands = {}
@@ -12,6 +13,10 @@ end
 
 Commands[Core.commands.unlocked] = function(arguments)
     Client.announceUnlock(arguments)
+end
+
+Commands[Core.commands.adminPoints] = function(arguments)
+    Client.receiveAdminPoints(arguments)
 end
 
 Commands[Core.commands.notify] = function(arguments)

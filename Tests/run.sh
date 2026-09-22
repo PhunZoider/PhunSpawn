@@ -109,6 +109,41 @@ else
     echo "dashes           no em dashes"
 fi
 
+# No globals but PhunSpawn. A `function name()` or `name = ...` at the top of a
+# file with no `local` is a global, and in a game where every mod shares one
+# Lua state, a global is somebody else's bug waiting for the same name. Top
+# level only; the map folder's objects.lua is the game's format, not ours.
+globals=$(grep -rnE "^(function [A-Za-z_][A-Za-z0-9_]*\(|[A-Za-z_][A-Za-z0-9_]* *=[^=])" \
+              --include="*.lua" Contents/mods/PhunSpawn \
+          | grep -v "/media/maps/" | grep -v ":PhunSpawn = {")
+if [ -n "$globals" ]; then
+    echo "GLOBALS something other than PhunSpawn is declared global:"
+    echo "$globals"
+    status=1
+else
+    echo "globals          nothing global but PhunSpawn"
+fi
+
+# Every translation file is JSON. B42 reads them as JSON, and one stray comma
+# loses the whole file: every key in it shows as its raw name.
+badjson=""
+for f in Contents/mods/PhunSpawn/common/media/lua/shared/Translate/*/*.json; do
+    err=$("$LJ" -e "
+        package.path = '${PHUNINTERIORS:-../PhunInteriors}/Contents/mods/PhunInteriors/common/media/lua/shared/?.lua;' .. package.path
+        local json = require('PhunInteriors/json')
+        local fh = assert(io.open('$f'))
+        local _, err = json.decode(fh:read('*a'))
+        if err then print(err) end" 2>&1)
+    [ -n "$err" ] && badjson="$badjson$f: $err"$'\n'
+done
+if [ -n "$badjson" ]; then
+    echo "JSON a translation file does not parse:"
+    printf "%s" "$badjson"
+    status=1
+else
+    echo "json             every translation file parses"
+fi
+
 for spec in Tests/lua/*_spec.lua; do
     PS_ROOT="$ROOT" "$LJ" "$spec" || status=1
 done

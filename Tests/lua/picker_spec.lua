@@ -28,6 +28,8 @@ local function reset()
     Core.points = {}
     Core.regions = {}
     Core.unlocked = {}
+    Core.data = {}
+    Core.saved = {points = {}, phones = {}, labels = {}}
     Core.indexesBuilt = false
 end
 
@@ -158,7 +160,7 @@ check("a known point goes through PhunInteriors", #sends, 1)
 check("to the point's own square", send and send.destination.x, 10)
 check("releasing the arrival room", send and send.release, true)
 check("the character is no longer pending", Placement.isPending(ann), false)
-check("the choice is remembered", ann:getModData()[Core.consts.lastChoiceKey], "s.home")
+check("the choice is remembered", Unlocks.lastChoice(ann), "s.home")
 check("and the fresh payload withdraws the button", lastSent(Core.commands.points).canSpawn, false)
 
 sent = {}

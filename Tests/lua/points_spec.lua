@@ -24,6 +24,8 @@ local function reset()
     Core.points = {}
     Core.regions = {}
     Core.unlocked = {}
+    Core.data = {}
+    Core.saved = {points = {}, phones = {}, labels = {}}
     Core.indexesBuilt = false
 end
 
@@ -123,10 +125,30 @@ check("granting again changes nothing", Unlocks.grant(bob, "u.explore"), false)
 check("granting a point that does not exist changes nothing", Unlocks.grant(bob, "u.nope"), false)
 check("and it is known now", Unlocks.has(bob, "u.explore"), true)
 
--- The truth is the character record, not the cache. Dropping the cache must
+-- The truth is the account record, not the cache. Dropping the cache must
 -- not drop the unlock, because that is exactly what a reconnect does.
 Core.unlocked = {}
 check("an unlock survives the cache being dropped", Unlocks.has(bob, "u.explore"), true)
+
+-- And it survives the CHARACTER. Dying makes a new character with fresh
+-- modData, and an unlock is only worth anything to that new character: it is
+-- the one choosing where to wake up.
+local bob2 = stubs.player("bob")
+check("a new character starts with fresh modData", bob2:getModData() ~= bob:getModData(), true)
+check("and still knows what the player found", Unlocks.has(bob2, "u.explore"), true)
+check("somebody else does not", Unlocks.has(stubs.player("nobody"), "u.explore"), false)
+
+-- A character from before unlocks were per player carries its list in its
+-- modData. It is folded into the account once, and cleared, so there is one
+-- list rather than two that can disagree.
+local old = stubs.player("oldtimer")
+old:getModData()[Core.consts.unlockedKey] = {["u.explore"] = true}
+old:getModData()[Core.consts.lastChoiceKey] = "u.start"
+check("a legacy unlock is honoured", Unlocks.has(old, "u.explore"), true)
+check("and taken off the character", old:getModData()[Core.consts.unlockedKey], nil)
+check("the legacy last choice comes too", Unlocks.lastChoice(old), "u.start")
+check("and is taken off as well", old:getModData()[Core.consts.lastChoiceKey], nil)
+check("the next character inherits it", Unlocks.has(stubs.player("oldtimer"), "u.explore"), true)
 
 -- And a point that has been removed from the registry is filtered on read
 -- rather than deleted, so putting the set back costs nobody their exploring.

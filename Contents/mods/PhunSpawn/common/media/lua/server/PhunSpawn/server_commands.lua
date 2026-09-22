@@ -6,6 +6,10 @@ require "PhunSpawn/tools"
 local Core = PhunSpawn
 local Unlocks = require "PhunSpawn/unlocks"
 local Placement = require "PhunSpawn/placement"
+local PhoneSwap = require "PhunSpawn/phone_swap"
+local Store = require "PhunSpawn/store"
+local Rides = require "PhunSpawn/rides"
+local Building = require "PhunSpawn/building"
 local Commands = {}
 
 -- ---------------------------------------------------------------------------
@@ -26,7 +30,7 @@ local Commands = {}
 local function sendPoints(player)
     Core.respond(player, Core.commands.points, {
         points = Unlocks.payloadFor(player),
-        last = player:getModData()[Core.consts.lastChoiceKey],
+        last = Unlocks.lastChoice(player),
         pending = Placement.isPending(player),
         canSpawn = Placement.canSpawn(player)
     })
@@ -52,10 +56,7 @@ Commands[Core.commands.discover] = function(player, args)
     if not point then
         return
     end
-    Core.respond(player, Core.commands.unlocked, {
-        id = point.id,
-        label = point.label
-    })
+    Core.respond(player, Core.commands.unlocked, PhoneSwap.announcement(point))
     sendPoints(player)
 end
 
@@ -78,7 +79,7 @@ Commands[Core.commands.choose] = function(player, args)
         return
     end
 
-    player:getModData()[Core.consts.lastChoiceKey] = id
+    Unlocks.setLastChoice(player, id)
     Core.respond(player, Core.commands.notify, {
         text = "IGUI_PhunSpawn_ChoiceSet",
         arg = Core.points[id].label
@@ -119,6 +120,16 @@ Commands[Core.commands.spawn] = function(player, args)
         })
         return
     end
+    -- Never into somebody else's safehouse. Asked before the move rather
+    -- than after, so the character simply stays where they are, with their
+    -- choice still open, instead of arriving and being sent back.
+    if Rides.safehouseBlocks(player, point.x, point.y) then
+        Core.respond(player, Core.commands.notify, {
+            text = "IGUI_PhunSpawn_TaxiSafehouse",
+            arg = point.label
+        })
+        return
+    end
 
     -- A hard dependency, so this is only ever missing when PhunInteriors is
     -- older than this mod. Said loudly: failing quietly here is a new
@@ -150,7 +161,7 @@ Commands[Core.commands.spawn] = function(player, args)
     end
 
     Placement.markSpawned(player)
-    player:getModData()[Core.consts.lastChoiceKey] = id
+    Unlocks.setLastChoice(player, id)
     Core.respond(player, Core.commands.notify, {
         text = "IGUI_PhunSpawn_WokeUp",
         arg = point.label
@@ -161,23 +172,278 @@ Commands[Core.commands.spawn] = function(player, args)
     sendPoints(player)
 end
 
---- "Put a point of mine on the map here."
---
--- TODO: unbuilt. What it has to do is mint an id, write it into the marker
--- object's modData under consts.objectIdKey, register the point and grant it.
--- The id must live inside movableData rather than at the top level, and the
--- lesson from PhunInteriors' tents is the one to design against: modData does
--- NOT survive a pickup reliably, and whether it does depends on which tile
--- was clicked. So either the marker refuses to be picked up, or a built point
--- must not depend on its modData surviving one.
+--- "Build a pay phone from this kit here." Everything is decided in
+--- building.lua; a refusal leaves the kit where it was.
 Commands[Core.commands.buildPoint] = function(player, args)
-    if not Core.settings.AllowBuiltPoints then
+    local point, why, arg = Building.build(player, args)
+    if not point then
         Core.respond(player, Core.commands.notify, {
-            text = "IGUI_PhunSpawn_BuiltPointsOff"
+            text = why,
+            arg = arg
         })
         return
     end
-    Core.logLn("buildPoint is not implemented yet")
+    Core.respond(player, Core.commands.notify, {
+        text = "IGUI_PhunSpawn_PhoneBuilt",
+        arg = point.label
+    })
+    sendPoints(player)
+end
+
+Commands[Core.commands.takeDownPhone] = function(player, args)
+    local ok, why = Building.takeDown(player, args)
+    Core.respond(player, Core.commands.notify, {
+        text = ok and "IGUI_PhunSpawn_PhoneTakenDown" or why
+    })
+    if ok then
+        sendPoints(player)
+    end
+end
+
+--- "Take me by taxi from this phone to there." See rides.lua.
+Commands[Core.commands.taxi] = function(player, args)
+    local point, why, arg = Rides.ride(player, args)
+    if not point then
+        Core.respond(player, Core.commands.notify, {
+            text = why,
+            arg = arg
+        })
+        return
+    end
+    Core.respond(player, Core.commands.notify, {
+        text = "IGUI_PhunSpawn_TaxiArrived",
+        arg = point.label
+    })
+end
+
+--- "I am using the pay phone on this square."
+--
+-- Everything is decided in phone_swap.lua, which checks the phone against the
+-- square and the square against where the player stands. Using a phone twice
+-- is not a refusal, just nothing new to remember.
+Commands[Core.commands.usePhone] = function(player, args)
+    local point, granted = PhoneSwap.use(player, args)
+    if not point then
+        -- `granted` is the reason here, a translation key.
+        Core.respond(player, Core.commands.notify, {
+            text = granted
+        })
+        return
+    end
+    if granted then
+        Core.respond(player, Core.commands.unlocked, {
+            id = point.id,
+            label = point.label,
+            text = "IGUI_PhunSpawn_PhoneAnswered"
+        })
+        sendPoints(player)
+    else
+        Core.respond(player, Core.commands.notify, {
+            text = "IGUI_PhunSpawn_PhoneKnown",
+            arg = point.label
+        })
+    end
+end
+
+-- ---------------------------------------------------------------------------
+-- The admin editor. Each handler checks admin rights itself: the context menu
+-- only offering the editor to admins is a convenience, and these are entry
+-- points anybody's client can send.
+-- ---------------------------------------------------------------------------
+
+local function sendAdminPoints(player)
+    Core.respond(player, Core.commands.adminPoints, {
+        points = Core.adminPayload()
+    })
+end
+
+Commands[Core.commands.adminList] = function(player, args)
+    if not Core.tools.isAdmin(player) then
+        return
+    end
+    sendAdminPoints(player)
+end
+
+--- "Put me at this point."
+--
+-- Any registered point, known to this admin or not, and deliberately none of
+-- what the spawn command does around the move: it grants nothing, sets no
+-- last choice and stamps no placement. An admin checking a point is not
+-- discovering it or choosing where to wake up, and a new admin character who
+-- ports about before choosing must still have their choice.
+--
+-- The move is PhunInteriors.sendTo for the spawn command's reason. The room is
+-- NOT released: an admin may be standing in a room of their own, and porting
+-- out to look at something is no reason to lose it.
+Commands[Core.commands.adminPort] = function(player, args)
+    if not Core.tools.isAdmin(player) then
+        return
+    end
+    local id = args and args.id
+    local point = id and Core.points[id]
+    if not point then
+        Core.respond(player, Core.commands.notify, {
+            text = "IGUI_PhunSpawn_NoSuchPoint"
+        })
+        return
+    end
+    if not (PhunInteriors and PhunInteriors.sendTo) then
+        Core.logLn("PhunInteriors.sendTo is missing; PhunInteriors is older than this version of PhunSpawn needs")
+        Core.respond(player, Core.commands.notify, {
+            text = "IGUI_PhunSpawn_CannotGoThere"
+        })
+        return
+    end
+    local ok, why = PhunInteriors.sendTo(player, {
+        x = point.x,
+        y = point.y,
+        z = point.z
+    }, "phunspawn_admin", false)
+    if not ok then
+        Core.logLn("admin port to " .. id .. " refused by PhunInteriors: " .. tostring(why))
+        Core.respond(player, Core.commands.notify, {
+            text = "IGUI_PhunSpawn_CannotGoThere"
+        })
+        return
+    end
+    Core.respond(player, Core.commands.notify, {
+        text = "IGUI_PhunSpawn_Ported",
+        arg = point.label
+    })
+    Core.logLn(tostring(Core.playerKey(player)) .. " ported to " .. id)
+end
+
+--- "Call this point this."
+--
+-- The rename is saved to the store file, so it survives a wipe. The editor
+-- gets its list again so the row shows what was stored, trimmed, rather than
+-- what was typed. Players see the new name the next time their picker asks
+-- for its list, which it does every time it opens.
+Commands[Core.commands.adminRename] = function(player, args)
+    if not Core.tools.isAdmin(player) then
+        return
+    end
+    local id = args and args.id
+    local point, why = Store.rename(id, args and args.label)
+    if not point then
+        Core.respond(player, Core.commands.notify, {
+            text = why
+        })
+        return
+    end
+    Core.logLn(tostring(Core.playerKey(player)) .. " renamed " .. tostring(id) .. " to '" .. point.label .. "'")
+    Core.respond(player, Core.commands.notify, {
+        text = "IGUI_PhunSpawn_Renamed",
+        arg = point.label
+    })
+    sendAdminPoints(player)
+end
+
+-- ---------------------------------------------------------------------------
+-- Setting a world up: points and phones an admin saves to the store file, so
+-- the next world after a wipe starts with them. Each answers with a notice
+-- and, on success, a fresh editor list.
+-- ---------------------------------------------------------------------------
+
+local function refuse(player, why)
+    Core.respond(player, Core.commands.notify, {
+        text = why
+    })
+end
+
+local function done(player, text, point)
+    Core.respond(player, Core.commands.notify, {
+        text = text,
+        arg = point and point.label or nil
+    })
+    sendAdminPoints(player)
+end
+
+--- "Add a point on this square, called this."
+--
+-- The square comes from the client, which is fine for an admin: this is the
+-- one command where the admin is saying where. It is found by exploring until
+-- the editor says otherwise, the region is PhunZones' name for the square.
+Commands[Core.commands.adminAddPoint] = function(player, args)
+    if not Core.tools.isAdmin(player) then
+        return
+    end
+    local x, y, z = tonumber(args and args.x), tonumber(args and args.y), tonumber(args and args.z) or 0
+    if not x or not y then
+        return refuse(player, "IGUI_PhunSpawn_NoSuchPoint")
+    end
+    local region = PhoneSwap.locate(x, y)
+    local point, why = Store.addPoint(x, y, z, args.label, region)
+    if not point then
+        return refuse(player, why)
+    end
+    Core.logLn(tostring(Core.playerKey(player)) .. " added " .. point.id .. " '" .. point.label .. "'")
+    done(player, "IGUI_PhunSpawn_PointAdded", point)
+end
+
+Commands[Core.commands.adminRemovePoint] = function(player, args)
+    if not Core.tools.isAdmin(player) then
+        return
+    end
+    local id = args and args.id
+    local ok, why = Store.removePoint(id)
+    if not ok then
+        return refuse(player, why)
+    end
+    Core.logLn(tostring(Core.playerKey(player)) .. " removed " .. tostring(id))
+    done(player, "IGUI_PhunSpawn_PointRemoved")
+end
+
+Commands[Core.commands.adminSetKind] = function(player, args)
+    if not Core.tools.isAdmin(player) then
+        return
+    end
+    local id = args and args.id
+    local point, why = Store.setKind(id, args and args.discovery)
+    if not point then
+        return refuse(player, why)
+    end
+    Core.logLn(tostring(Core.playerKey(player)) .. " set " .. tostring(id) .. " to " .. point.discovery)
+    done(player, "IGUI_PhunSpawn_KindSet", point)
+end
+
+--- "Keep this phone." By square from the context menu, or by point id from
+--- the editor, which lists only phones that already have a record. With a
+--- facing, "put a phone here facing this way, and keep it".
+Commands[Core.commands.adminKeepPhone] = function(player, args)
+    if not Core.tools.isAdmin(player) then
+        return
+    end
+    local x, y, z = tonumber(args and args.x), tonumber(args and args.y), tonumber(args and args.z) or 0
+    local key = PhoneSwap.keyOfPoint(args and args.id)
+    local record = key and PhoneSwap.store()[key]
+    if record then
+        x, y, z = record.x, record.y, record.z or 0
+    end
+    if not x or not y then
+        return refuse(player, "IGUI_PhunSpawn_NoPhoneHere")
+    end
+    -- A facing only from the context menu's "Add phone and spawn point
+    -- here", and only for a square with no phone on it yet.
+    local point, why = PhoneSwap.keep(x, y, z, args.facing)
+    if not point then
+        return refuse(player, why)
+    end
+    Core.logLn(tostring(Core.playerKey(player)) .. " kept the pay phone " .. point.id)
+    done(player, "IGUI_PhunSpawn_PhoneKept", point)
+end
+
+Commands[Core.commands.adminReleasePhone] = function(player, args)
+    if not Core.tools.isAdmin(player) then
+        return
+    end
+    local key = PhoneSwap.keyOfPoint(args and args.id)
+    local point, why = PhoneSwap.release(key)
+    if not point then
+        return refuse(player, why or "IGUI_PhunSpawn_NotKept")
+    end
+    Core.logLn(tostring(Core.playerKey(player)) .. " released the pay phone " .. point.id)
+    done(player, "IGUI_PhunSpawn_PhoneReleased", point)
 end
 
 --- Admin actions, reachable from the console as PhunSpawn.admin(action, args).
@@ -208,6 +474,20 @@ Commands[Core.commands.admin] = function(player, args)
         else
             table.insert(result, "nothing granted")
         end
+
+    elseif action == "reload" then
+        -- For a hand edit of the store file made while the server runs.
+        -- Without it the next change made in game writes over the edit.
+        local problems = Store.reload()
+        PhoneSwap.adopt()
+        for key, record in pairs(PhoneSwap.store()) do
+            PhoneSwap.registerRecord(key, record)
+        end
+        table.insert(result, "read " .. Store.FILE .. " again, " .. #problems .. " problem(s)")
+        for _, complaint in ipairs(problems) do
+            table.insert(result, "  " .. complaint)
+        end
+        table.insert(result, Core.describeRegistry())
 
     elseif action == "where" then
         table.insert(result, string.format("%d, %d, %d",

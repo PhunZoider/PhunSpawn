@@ -4,10 +4,13 @@ end
 require "PhunSpawn/points"
 require "PhunSpawn/tools"
 require "PhunSpawn/interiors"
+require "PhunSpawn/phone_guards"
 require "PhunSpawn/defaults"
 local Core = PhunSpawn
 local Commands = require "PhunSpawn/server_commands"
 local Unlocks = require "PhunSpawn/unlocks"
+local PhoneSwap = require "PhunSpawn/phone_swap"
+local Store = require "PhunSpawn/store"
 
 local started = false
 
@@ -20,12 +23,26 @@ local function start()
     Core.data = ModData.getOrCreate(Core.consts.modDataKey)
     Core.refreshSettings()
 
+    -- The store file before any point registers, because a rename in it is
+    -- read at registration.
+    Store.load()
+
     -- Points first, then anything that reads them.
     --
     -- This runs on OnInitGlobalModData, which is long after every mod's lua
     -- has loaded, so by the time it fires every listener that is ever going
     -- to be attached already is.
     Core.openRegistration()
+
+    -- An admin's points, after the code's, so one of the same id replaces
+    -- the shipped one.
+    Store.registerAll()
+
+    -- Pay phones are points too, but out of ModData and the store file
+    -- rather than code, so they register here, now that Core.data is the
+    -- loaded table. It also opens the swap: a square that loads before this
+    -- is left unstamped and rolls the next time it loads.
+    PhoneSwap.start()
 
     triggerEvent(Core.events.OnReady, Core)
 
@@ -38,6 +55,8 @@ end
 
 Events.OnInitGlobalModData.Add(start)
 Events.OnServerStarted.Add(start)
+
+Events.LoadGridsquare.Add(PhoneSwap.loadGridsquare)
 
 Events.OnClientCommand.Add(function(module, command, player, arguments)
     if module == Core.name and Commands[command] then
@@ -65,10 +84,7 @@ Events.EveryOneMinute.Add(function()
         if player then
             local point = Unlocks.checkDiscovery(player)
             if point then
-                Core.respond(player, Core.commands.unlocked, {
-                    id = point.id,
-                    label = point.label
-                })
+                Core.respond(player, Core.commands.unlocked, PhoneSwap.announcement(point))
             end
         end
     end
@@ -78,5 +94,5 @@ end)
 -- player left" event at all: OnDisconnect is a CLIENT event meaning "you were
 -- disconnected", it takes no player argument, and LuaEventManager declares no
 -- equivalent. Nothing is lost by that here, because the unlock list lives in
--- the character record rather than in memory; Core.unlocked is only a cache
+-- the account record in ModData rather than in memory; Core.unlocked is only a cache
 -- and a stale entry for somebody absent costs nothing.

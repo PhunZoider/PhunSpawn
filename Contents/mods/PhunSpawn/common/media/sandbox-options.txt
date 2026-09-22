@@ -45,7 +45,7 @@ option PhunSpawn.AllowBuiltPoints
 option PhunSpawn.BuiltPointLimit
 {
     type = integer,
-    default = 3,
+    default = 5,
     min = 0,
     max = 99,
     page = PhunSpawn,
@@ -58,4 +58,100 @@ option PhunSpawn.RespawnPenalty
     default = false,
     page = PhunSpawn,
     translation = PhunSpawn_RespawnPenalty,
+}
+
+option PhunSpawn.PhoneChance
+{
+    type = integer,
+    default = 50,
+    min = 0,
+    max = 100,
+    page = PhunSpawn,
+    translation = PhunSpawn_PhoneChance,
+}
+
+option PhunSpawn.PhoneDistance
+{
+    type = integer,
+    default = 500,
+    min = 0,
+    max = 10000,
+    page = PhunSpawn,
+    translation = PhunSpawn_PhoneDistance,
+}
+
+option PhunSpawn.PhoneRing
+{
+    type = boolean,
+    default = true,
+    page = PhunSpawn,
+    translation = PhunSpawn_PhoneRing,
+}
+
+option PhunSpawn.PhoneRingRange
+{
+    type = integer,
+    default = 30,
+    min = 1,
+    max = 200,
+    page = PhunSpawn,
+    translation = PhunSpawn_PhoneRingRange,
+}
+
+option PhunSpawn.BuiltPhoneDistance
+{
+    type = integer,
+    default = 50,
+    min = 0,
+    max = 10000,
+    page = PhunSpawn,
+    translation = PhunSpawn_BuiltPhoneDistance,
+}
+
+option PhunSpawn.PhoneDiscoverRadius
+{
+    type = integer,
+    default = 0,
+    min = 0,
+    max = 30,
+    page = PhunSpawn,
+    translation = PhunSpawn_PhoneDiscoverRadius,
+}
+
+option PhunSpawn.TaxiFastTravel
+{
+    type = boolean,
+    default = false,
+    page = PhunSpawn,
+    translation = PhunSpawn_TaxiFastTravel,
+}
+
+option PhunSpawn.TaxiCentsPerSquare
+{
+    type = integer,
+    default = 1,
+    min = 0,
+    max = 1000,
+    page = PhunSpawn,
+    translation = PhunSpawn_TaxiCentsPerSquare,
+}
+
+option PhunSpawn.TaxiMinimumFare
+{
+    type = integer,
+    default = 100,
+    min = 0,
+    max = 100000,
+    page = PhunSpawn,
+    translation = PhunSpawn_TaxiMinimumFare,
+}
+
+option PhunSpawn.TaxiZombieRadius
+{
+    type = integer,
+    default = 6,
+    min = 0,
+    max = 50,
+    page = PhunSpawn,
+    translation = PhunSpawn_TaxiZombieRadius,
 }

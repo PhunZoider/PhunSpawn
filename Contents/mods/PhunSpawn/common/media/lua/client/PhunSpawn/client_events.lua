@@ -4,6 +4,7 @@ end
 require "PhunSpawn/points"
 require "PhunSpawn/tools"
 require "PhunSpawn/interiors"
+require "PhunSpawn/phone_guards"
 require "PhunSpawn/defaults"
 require "PhunSpawn/client_main"
 require "PhunSpawn/client_context"

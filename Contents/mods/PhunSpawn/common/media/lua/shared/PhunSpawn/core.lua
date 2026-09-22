@@ -18,21 +18,20 @@ PhunSpawn = {
     consts = {
         -- global ModData key, and the key every sub table hangs off
         modDataKey = "PhunSpawn",
-        -- Which points this character has unlocked, on the PLAYER.
+        -- Where a PLAYER's unlocks live: Core.data[accountsKey][accountKey],
+        -- in global ModData, as {unlocked = {pointId = true}, lastChoice}.
         --
-        -- Player modData rather than our own store, for the reason
-        -- PhunInteriors keeps its entrance position there: IsoPlayer.save
-        -- reaches IsoMovingObject.save, which writes the modData KahluaTable
-        -- into the character record. So an unlock survives a restart and the
-        -- loss of global_mod_data.bin, which is the difference between a
-        -- player losing an afternoon of exploring and not.
-        --
-        -- It is per CHARACTER and deliberately so. Discovery is the mechanic,
-        -- and an account wide list would hand the second character a map that
-        -- is already solved.
+        -- Per player and not per character, because unlocks exist to be
+        -- spawned at and a character is only ever spawned once: dying makes a
+        -- new character with fresh modData, so a list kept on the character
+        -- would die with the one who earned it and reach nobody who could use
+        -- it. The cost is that global_mod_data.bin is now what an afternoon of
+        -- exploring rides on, where the character record used to be.
+        accountsKey = "accounts",
+        -- LEGACY. Where unlocks and the last choice lived when they were per
+        -- character, on the player's modData. Read once per character, folded
+        -- into the account and cleared; see unlocks.lua.
         unlockedKey = "PhunSpawn_unlocked",
-        -- Where this character last chose to wake up, so the picker opens on
-        -- it rather than on the top of the list.
         lastChoiceKey = "PhunSpawn_lastChoice",
         -- Whether this character has been placed yet, on the PLAYER. See
         -- server/placement.lua: nil is "not looked at", "pending" is a new
@@ -44,7 +43,27 @@ PhunSpawn = {
         -- modData. Inside movableData rather than at the top level, because
         -- vanilla drops a top level key on pickup for some object classes and
         -- not others: see the pickup row in PhunInteriors' API table.
-        objectIdKey = "PhunSpawn_pointId"
+        objectIdKey = "PhunSpawn_pointId",
+        -- Stamped on a vanilla pay phone once it has had its roll, win or
+        -- lose, so it does not roll again every time its chunk loads. The
+        -- same sentinel PhunMart puts on a vending machine.
+        phoneRolledKey = "PhunSpawn_phoneRolled",
+        -- On a phone a player built, the account key of who built it, so
+        -- their client can offer to take it down. The server's record is the
+        -- truth; this is only what the menu reads.
+        phoneOwnerKey = "PhunSpawn_owner",
+        -- The kit a player crafts and builds a phone from.
+        phoneKitItem = "PhunSpawn.PayPhoneKit",
+        -- The file an admin's work is kept in: points they added, phones
+        -- they kept, and renames. In the game's Lua folder rather than the
+        -- save, so it survives a wipe. See server/store.lua.
+        storeFile = "PhunSpawn.json",
+        -- What a point an admin added is registered under: this and its
+        -- square, so two can never share one.
+        customPrefix = "phun.spawn.custom.",
+        -- The longest label the editor will store. A label is drawn in a
+        -- list row and beside a map pin, and neither wraps.
+        labelMax = 60
     },
     data = {},
     commands = {
@@ -65,11 +84,48 @@ PhunSpawn = {
         -- the position rather than taking a point id from a client, the same
         -- way PhunInteriors names a position and never an identity.
         discover = "discover",
-        -- client -> server: "put a point of mine on the map here"
+        -- client -> server: "build a pay phone from this kit on this square,
+        -- facing this way". Carries the square, the facing and the kit's
+        -- item id; the server checks all three.
         buildPoint = "buildPoint",
+        -- client -> server: "take down the phone I built on this square"
+        takeDownPhone = "takeDownPhone",
+        -- client -> server: "take me by taxi from the phone on this square to
+        -- this point". Fast travel, for a fare; see server/taxi.lua.
+        taxi = "taxi",
+        -- client -> server: "I am using the pay phone on this square".
+        -- Carries the phone's square, which the server checks against where
+        -- the player stands and against its own list of swapped phones.
+        usePhone = "usePhone",
         notify = "notify",
         admin = "admin",
-        adminResult = "adminResult"
+        adminResult = "adminResult",
+        -- The admin editor. Every one of these is re-checked for admin
+        -- rights on the server; the menu hiding the editor is not a gate.
+        -- client -> server: "send me every point there is"
+        adminList = "adminList",
+        -- server -> client: every registered point, with coordinates,
+        -- whatever the requester has discovered
+        adminPoints = "adminPoints",
+        -- client -> server: "put me at this point". Any point, known or not,
+        -- and it neither grants it nor uses up a new character's choice.
+        adminPort = "adminPort",
+        -- client -> server: "call this point this". An empty label, or the
+        -- registered one, puts the registered label back.
+        adminRename = "adminRename",
+        -- client -> server: "add a point on this square, called this".
+        -- Saved to the store file, so it survives a wipe.
+        adminAddPoint = "adminAddPoint",
+        -- client -> server: "take out a point I added"
+        adminRemovePoint = "adminRemovePoint",
+        -- client -> server: "change how a point I added is found"
+        adminSetKind = "adminSetKind",
+        -- client -> server: "keep the phone on this square after a wipe".
+        -- A vanilla phone is swapped for ours first.
+        adminKeepPhone = "adminKeepPhone",
+        -- client -> server: "stop keeping it". The phone stays where it is,
+        -- as an ordinary swapped phone.
+        adminReleasePhone = "adminReleasePhone"
     },
     events = {
         -- Where third party mods register their own points, and where
@@ -89,7 +145,12 @@ PhunSpawn = {
         -- CLIENT side: a fresh points payload has landed in Client.points.
         -- Carries the payload. The picker's list redraws on it, so a point
         -- found while the window is open shows up without reopening it.
-        OnPointsReceived = "PhunSpawnOnPointsReceived"
+        OnPointsReceived = "PhunSpawnOnPointsReceived",
+        -- CLIENT side: the admin list has landed in Client.adminPoints.
+        -- Separate from OnPointsReceived because the two payloads say
+        -- different things: one is what this character knows, the other is
+        -- everything there is.
+        OnAdminPointsReceived = "PhunSpawnOnAdminPointsReceived"
     },
     -- Registry, populated by points.lua and by other mods on the register
     -- event.
@@ -99,11 +160,21 @@ PhunSpawn = {
     --            is indexed without anybody having to sequence anything.
     points = {},
     regions = {},
-    -- Server side only: username -> {pointId = true}. A cache of what the
-    -- character's own modData says, so a lookup does not reach into the
-    -- character record on every tick. The modData is the truth; this is the
-    -- copy, and it is rebuilt on playerSetup.
+    -- Server side only: account key -> {pointId = true}. A cache of the
+    -- account record in global ModData, so a lookup does not reach into it
+    -- on every tick. The record is the truth; this is the copy, and it is
+    -- rebuilt on playerSetup.
     unlocked = {},
+    -- What the store file says, server side: {points, phones, labels}.
+    -- Loaded before anything registers, because a rename is read at
+    -- registration. Written by server/store.lua, except `labels`, which
+    -- Core.renamePoint edits for the store to save. Always empty on a
+    -- client, which is told everything it needs in a payload.
+    saved = {
+        points = {},
+        phones = {},
+        labels = {}
+    },
     settings = {},
     ui = {},
     modules = {}
@@ -149,12 +220,44 @@ Core.defaults = {
     -- Whether undiscovered points are drawn greyed out or not at all. Shown
     -- is a map of somewhere to head for, hidden is a blank one.
     ShowUndiscovered = false,
-    -- Whether a player may build a point of their own.
+    -- Whether a player may build a pay phone of their own from a kit.
     AllowBuiltPoints = true,
-    -- How many a character may hold at once. Zero means no limit.
-    BuiltPointLimit = 3,
+    -- How many phones one player may have standing at once. Zero means no
+    -- limit.
+    BuiltPointLimit = 5,
+    -- No phone may be built within this many squares of any other phone of
+    -- ours. Zero turns the spacing off.
+    BuiltPhoneDistance = 50,
+    -- How near, in squares, a phone has to be to count as found by walking
+    -- up to it. Zero, the default, means only picking it up counts: the
+    -- harder game. Separate from DiscoveryRadius, which is for places, where
+    -- there is nothing to pick up and so no zero.
+    PhoneDiscoverRadius = 0,
+    -- A taxi from any known phone to any other, for a fare. Off by default:
+    -- it is fast travel, and the free ride out of the spawn room is not.
+    TaxiFastTravel = false,
+    -- The fare, in cents of PhunMart's change, per square travelled, and
+    -- the least any ride costs. Both zero is a free taxi, and needs no
+    -- PhunMart.
+    TaxiCentsPerSquare = 1,
+    TaxiMinimumFare = 100,
+    -- No taxi while a zombie is within this many squares. Zero turns the
+    -- check off.
+    TaxiZombieRadius = 6,
     -- Whether choosing a point costs the character anything on respawn.
-    RespawnPenalty = false
+    RespawnPenalty = false,
+    -- Percent chance a vanilla pay phone is swapped for one of ours, rolled
+    -- once per phone. Zero turns the swap off.
+    PhoneChance = 50,
+    -- No swapped phone within this many squares of another. Zero turns the
+    -- spacing off.
+    PhoneDistance = 500,
+    -- A phone this player has never used rings now and then when they are
+    -- near it, to draw them over. Decided and played client side; see
+    -- client_phone.lua.
+    PhoneRing = true,
+    -- How near, in squares. 30 because that is as far as the sound carries.
+    PhoneRingRange = 30
 }
 
 function Core.getOption(name, default)
@@ -219,6 +322,23 @@ function Core.playerKey(player)
         return nil
     end
     return player:getUsername() or tostring(player:getOnlineID())
+end
+
+--- Who a player is across deaths: the key their unlocks are kept under.
+--
+-- The username on a server, which is the account and outlives every
+-- character on it. In single player the username is not something to key on
+-- (vanilla's own fishing falls back to the player number there for the same
+-- reason), and the save is the only account there is, so it is the local
+-- player slot: player 0 dying and coming back is still player 0.
+function Core.accountKey(player)
+    if not player then
+        return nil
+    end
+    if Core.isLocal then
+        return "local:" .. tostring(player:getPlayerNum())
+    end
+    return Core.playerKey(player)
 end
 
 function Core.now()

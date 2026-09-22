@@ -29,7 +29,7 @@ of it should be re-derived.
 bash Tests/run.sh
 ```
 
-Parses every lua file with LuaJIT, then runs four static checks and the specs
+Parses every lua file with LuaJIT, then runs six static checks and the specs
 in `Tests/lua/`. Each static check catches a bug class LuaJIT cannot see:
 
 - **namespace**: no function shadowing a field declared on the `PhunSpawn`
@@ -37,12 +37,16 @@ in `Tests/lua/`. Each static check catches a bug class LuaJIT cannot see:
   registry table at file load time, silently, and the first registration would
   index a function. That has happened in this family.
 - **unlocks**: no writer of `Core.unlocked` other than `unlocks.lua`. It is a
-  cache of the character record, and a copy maintained in two places
+  cache of the account record, and a copy maintained in two places
   disagrees with the truth.
 - **shadows**: no local redeclared at the top level of one function
   (`Tests/shadow.pl`). LuaJIT parses one happily and the damage shows up
   somewhere else entirely.
 - **dashes**: no em dashes. See House style.
+- **globals**: nothing declared global at the top of a file but `PhunSpawn`.
+  A `function name()` without `local` is the easy slip.
+- **json**: every translation file parses. One stray comma loses the whole
+  file, and every key in it shows raw.
 
 LuaJIT cannot catch API misuse. PZ globals do not exist outside the game, and
 LuaJIT accepts `next()` and `loadstring`, neither of which B42 exposes.
@@ -67,16 +71,26 @@ folder.
 Contents/mods/PhunSpawn/common/
   mod.info                  id=phunspawn, versionMin=42.0.0, require=phuninteriors
   media/sandbox-options.txt
-  media/lua/shared/PhunSpawn/   core, tools, points, interiors, defaults
-  media/lua/server/PhunSpawn/   unlocks, placement, server_{commands,events}
-  media/lua/client/PhunSpawn/   client_{main,commands,context,events}
-  media/lua/client/PhunSpawn/ui/  picker, map_panel, list_panel (vendored),
+  media/lua/shared/PhunSpawn/   core, tools, points, phones, phone_guards, taxi,
+                                interiors, defaults
+  media/lua/server/PhunSpawn/   unlocks, placement, phone_swap, store, rides,
+                                building, server_{commands,events}
+  media/lua/client/PhunSpawn/   client_{main,commands,context,events,phone,
+                                admin}
+  media/lua/client/PhunSpawn/ui/  picker, editor, map_panel, list_panel (vendored),
                                   ui_utils
-  media/lua/shared/Translate/EN/  ContextMenu.json, IG_UI.json, Sandbox.json
+  media/lua/shared/Translate/EN/  ContextMenu, IG_UI, Sandbox, ItemName, Recipes (.json)
+  media/scripts/                 PhunSpawn_Items.txt (the kit and its recipe),
+                                 PhunSpawn_Sounds.txt
 
 Tests/run.sh               syntax check, static checks and specs
 Tests/lua/stubs.lua        PZ globals, faked just enough to load
 Tests/lua/points_spec.lua  the registry, the sort, discovery and the payload
+Tests/lua/store_spec.lua   PhunSpawn.json: the wipe round trip, bad files,
+                           kept phones. Loads PhunInteriors' json.lua from
+                           ../PhunInteriors (or $PHUNINTERIORS).
+Tests/lua/taxi_spec.lua    near discovery, fares, rides and every refusal,
+                           safehouses, building and taking down phones
 Tests/root/PhunSpawn/      overlay carrying the test id. The path must mirror
                            the live mod folder or the overlay silently does
                            nothing.
@@ -105,16 +119,45 @@ House style, taken from PhunInteriors and PhunCure2:
 `Core.isLocal` and either round-trip through `sendClientCommand` or call the
 handler directly. Never write a separate SP implementation: two halves drift.
 
-**The character record is the truth, and the cache is a copy.** The unlock
-list lives in player modData, because `IsoPlayer.save` reaches
-`IsoMovingObject.save`, which writes the modData `KahluaTable` into the
-character record. So an unlock survives a restart, a wipe of
-`global_mod_data.bin`, and anything our own store could lose. `Core.unlocked`
-is the server side cache, rebuilt on login.
+**Unlocks are per PLAYER, and the account record is the truth.** They live
+in global ModData under `Core.data.accounts[Core.accountKey(player)]`, as
+`{unlocked, lastChoice}`. The key is the username on a server and the local
+player slot in SP (vanilla's fishing does the same, because an SP username is
+not a key). `Core.unlocked` is the server side cache, rebuilt on login.
 
-It is per **character** and cannot be anything else without changing the
-mechanic: discovery is the point, and an account wide list hands the second
-character a map that is already solved.
+They were per character once, in player modData, and that was reversed on
+purpose: the only moment an unlock is worth anything is choosing where to
+wake up, and that moment belongs to the NEXT character, because dying makes a
+new character with fresh modData. A per character list died with the one who
+earned it. The price is that `global_mod_data.bin` now carries everyone's
+exploring. A character still holding a legacy list in its modData has it
+folded into the account on first read and cleared, so there is one list and
+not two that disagree.
+
+**The game is a taxi fed by phones.** A new character gets one free ride out
+of the spawn room (the spawn command, once, `placement.lua`), to anything
+the account knows. Phones are what a player finds to widen that, so the
+default is that a phone counts only when used; `PhoneDiscoverRadius` above 0 makes
+walking up enough and rings once as the cue. `TaxiFastTravel` (off by
+default) is paid travel between known phones only, fare from PhunMart's
+"change" pool (`server/rides.lua`), charged **after** `sendTo` accepts, so a
+refused move costs nothing. The fare sum is shared (`shared/taxi.lua`) so the
+quote on the Go button and the charge cannot disagree.
+
+**No ride ever lands in somebody else's safehouse**, and that is checked
+**before** the move, not by bouncing back after: `Rides.safehouseBlocks`
+asks `SafeHouse.getSafehouseOverlapping`, which walks the claim list and so
+answers for an unloaded destination (see PhunInteriors' API table, including
+the half open rectangle). This one check is what makes player built phones
+safe, which is why building allows indoors and one's own safehouse: nobody
+but members can ride there.
+
+**A built phone is a phone record with `owner` and `built`**, built by a
+request the server checks in full before anything is placed
+(`server/building.lua`), from a kit that is not a moveable. Spaced against
+every phone, limited per account, never in the store file, so a wipe takes
+it. Its owner key is also stamped on the object, but only for the client's
+"Take down" menu; the record decides.
 
 **A starter is granted on read, not stamped once.** So a point added to the
 start set in a later version reaches existing characters and there is no
@@ -157,6 +200,21 @@ map instancing, its tiles and textures (see `Docs/map.md`) and its way of
 moving a player, so there is no working mode without it. Older code and
 comments that guard for it being absent are from when it was a soft hook.
 
+**What an admin sets up lives in `PhunSpawn.json`, not in ModData.** Points
+added from the context menu, pay phones kept, and every rename. It is in the
+game's Lua folder, which a wipe does not touch, so the next world starts with
+them; ModData is in the save and goes with it. `server/store.lua` owns it,
+with PhunInteriors' rules for the two file calls (`false` to `getFileReader`,
+encode before `getFileWriter`) and PhunInteriors' `json.lua`, required rather
+than copied because PhunInteriors is a hard dependency. It is read **before**
+registration (a rename is read at registration) and its points register
+**after** the code's, so a point of the same id replaces a shipped one. Every
+change is written at once and undone if the write fails; a file that did not
+parse is never written over. A kept phone is never forgotten: a square that
+loads without it gets one of ours put back, over a vanilla phone if one is
+there, which is what carries it into a new world. It is still keyed by its
+square, so its point id is the one the client rings by.
+
 **Moving a player is `PhunInteriors.sendTo`, never a teleport of our own.**
 A bare teleport out of a room leaves PhunInteriors believing the player is
 still in it: occupancy, lease, leash and the client's "Step outside" all stay
@@ -184,8 +242,9 @@ dedicated server does not have.
 1. **Nothing has run in game.** The whole mod. The first thing to watch is
    whether a server side write to player modData persists on a **dedicated**
    server: it is settled from the jar for PhunInteriors' entrance key and
-   nothing has confirmed it for ours. If the client's copy wins, every unlock
-   comes back empty after a rejoin, silently.
+   nothing has confirmed it for ours. Unlocks no longer depend on it (they are
+   in global ModData), but `spawnedKey` does: if the client's copy wins, a
+   character who rejoins is offered a second free choice.
 2. **The shipped points are placeholders.** Three vanilla Muldraugh, West
    Point and Riverside coordinates that have not been checked against the map.
    A spawn point on a solid square drops a new character into geometry and
@@ -195,11 +254,29 @@ dedicated server does not have.
    failure. Fill it once the cells exist, reading origins out of the lotpacks
    with PhunInteriors' `Docs/tiles.pl` rather than off a grid, and check with
    `Docs/roomcheck.pl`.
-4. **Built points are a stub, and the constraint is already known.** Object
-   modData does **not** survive a pickup reliably, and whether it does depends
-   on which tile was clicked. So either the marker refuses to be picked up, or
-   a built point must not depend on its modData surviving one. See the tent
-   pickup rows in PhunInteriors' API table before designing this.
+4. **The taxi and player built phones have never run in game.**
+   `taxi_spec.lua` covers the order and outcome of every check without a
+   square. Unproven, in order of risk:
+   - The recipe (`scripts/PhunSpawn_Items.txt`): that it parses, the item ids
+     (`Base.ElectricWire`, `Base.SheetMetal`, `Base.ElectronicsScrap`,
+     `Base.Screws`) and the `base:screwdriver` tag exist in B42, and it shows
+     under Electrical at Electricity 4. The icon is borrowed
+     (`ElectronicsScrap`); there is no taxi phone icon anywhere yet.
+   - `PhoneSwap.replace` on an empty square (gap 10), now also how a built
+     phone goes up, and whether the owner stamp in modData reaches the client
+     with `transmitCompleteItemToClients`. If it does not, "Take down" is
+     never offered.
+   - The build checks read `getFloor`, `isSolid` and `isSolidTrans`, and the
+     take down gives the kit back with `AddItem` plus
+     `sendAddItemToContainer`. Only the kit spend is PhunInteriors' proven
+     pattern.
+   - `getCell():getZombieList()` on a dedicated server for the zombie check.
+   - PhunMart's wallet: `getBalance` / `adjustByPool` with the "change" pool
+     and the `getWallet` resync after, copied from its own server commands.
+   - `ISButton:setWidthToTitle` as Go gains and loses its fare, and a picker
+     switching between spawn and taxi mode.
+   Object modData still does **not** survive a pickup reliably, which is why
+   nothing about a built phone lives on the object but the menu's hint.
 5. **The picker is written and has never been opened.** `client/.../ui/`:
    `picker.lua` is the window and an accordion list (click a city to open it
    and fit the map to it), `map_panel.lua` is a bare `UIWorldMap` set up call
@@ -214,7 +291,55 @@ dedicated server does not have.
    (`server/.../placement.lua`, stamped in modData under `spawnedKey`), and
    rests on the same unproven dedicated server modData write as gap 1.
    `point.room` is ignored, the spawn square is not checked for being free,
-   and there is no joypad support.
+   and there is no joypad support. A player opens it only as the taxi ("Take
+   taxi ride" on a `phuninteriors_02_0` to `_39` tile, in the spawn room);
+   an admin in admin mode gets "Spawn points" anywhere. So a new character
+   who closes it must walk back to the taxi, and nothing checks that the
+   spawn room has one.
 6. **`icon.png` and `poster.png` are missing.** `mod.info` names both, and
    `Tests/root/PhunSpawn/common/` needs its own pair for the test id.
 7. **`workshop.txt` has an empty `id=`.** Fill on first publish.
+8. **The pay phone swap has never run in game.** PhunMart's vending machine
+   swap applied to phones (`shared/.../phones.lua` for the table,
+   `server/.../phone_swap.lua` for the roll, the swap and the records).
+   Unproven, in order of risk: that `LoadGridsquare` modifying a square
+   behaves as it does for PhunMart; that "Facing = E" means the player
+   stands east of the phone, which is where a phone's spawn point is put;
+   and the ring, which is entirely client side (`client/.../client_phone.lua`):
+   squares noted on the client's LoadGridsquare, known phones read from the
+   points payload by `Core.phonePointId`, played through a free emitter with
+   `PhunSpawn_PhoneRinging`. A phone placed from an item rings too, since the
+   client cannot tell it was never recorded. The guards
+   (`shared/.../phone_guards.lua`) cover pickup, rotate, dismantle,
+   sledgehammer and cars (HitByCar is unset on our sprites); admin mode is
+   the movables or build cheat, so **turn it off to test them**. Unproven that
+   B42's server runs `isValid` on these actions as it completes them, which
+   is why they are shared. A phone that still goes missing is forgotten the
+   next time its square loads, and one put down elsewhere is not a spawn point
+   ("The line is dead"). The walk goes to the square in front, falling back
+   to `luautils.walkAdj`.
+9. **The admin editor has never been opened.** `client/.../ui/editor.lua`,
+   opened from the admin panel and the debug menu (`client_admin.lua`, as in
+   PhunInteriors), so in single player only in debug mode. Every registered
+   point in a flat list with filter tabs by kind and a live distance column,
+   sorted nearest first, the whole map beside it, and Go there, Rename and
+   Reset name. Go there is `sendTo` without releasing any room, and grants nothing, sets no
+   last choice and stamps no placement. A rename is an override in
+   `PhunSpawn.json` (`Core.saved.labels`), read by `registerPoint`, so it
+   survives the next boot and a wipe; set back to the registered label it
+   is removed rather than stored. Players see a rename the next time their
+   picker asks for its list. Unproven: the `ISTextBox` callback shape
+   (copied from PhunInteriors' `binding_form.lua`) and every map risk in
+   gap 5.
+10. **`PhunSpawn.json` has never been written by the game.** The store,
+   the admin setup submenu on the context menu (admin mode only, and a new
+   phone faces the admin, from where they stand), and Keep, Release, Found by
+   and Remove in the editor. Unproven, in order of risk: that a kept phone
+   put on a square with nothing on it (`PhoneSwap.replace` with no old
+   object) behaves as the swap does, and blocks movement;
+   `getFileReader`/`getFileWriter` landing in `Zomboid/Lua/` on a dedicated
+   server as they do for PhunInteriors; the `ISContextMenu:getNew` /
+   `addSubMenu` submenu; and `ISButton:setTitle` flipping Keep and Release.
+   Nothing checks that an added point's square is free, so it carries gap
+   2's risk: the admin clicked it, which is better evidence than a
+   placeholder has, and is still not proof.

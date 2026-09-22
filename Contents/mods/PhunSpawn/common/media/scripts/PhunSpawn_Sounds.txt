@@ -1,0 +1,14 @@
+module Base
+{
+	sound PhunSpawn_PhoneRinging
+	{
+        category = Player,
+		loop = true, 
+		is3D = true,
+        clip { 
+			file = media/sound/ringing.ogg, 
+			distanceMax = 30, 
+			volume = 0.3f 
+		}
+	}
+}

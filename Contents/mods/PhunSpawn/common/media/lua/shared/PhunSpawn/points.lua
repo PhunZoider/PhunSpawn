@@ -34,6 +34,9 @@ Core.discovery = {
     explore = "explore",
     -- unlocked by building the thing that marks it
     built = "built",
+    -- unlocked by using the thing that marks it, a pay phone. Never by
+    -- walking past: see server/phone_swap.lua.
+    used = "used",
     -- unlocked by something else entirely: another mod, a quest, an admin
     granted = "granted"
 }
@@ -83,14 +86,22 @@ function Core.registerPoint(id, def)
 
     local point = {
         id = id,
-        label = def.label,
+        -- An admin's rename wins over what the registration says, and the
+        -- registered label is kept beside it so the editor can put it back.
+        label = Core.labelOverride(id) or def.label,
+        shippedLabel = def.label,
         x = def.x,
         y = def.y,
         z = def.z or 0,
         region = def.region,
         discovery = def.discovery or Core.discovery.explore,
         room = def.room,
-        priority = def.priority or 0
+        priority = def.priority or 0,
+        -- In the store file, so it survives a wipe. Set by store.lua and
+        -- phone_swap.lua for what they register out of it, and shown in the
+        -- editor. Not a promise a third party can make: nothing reads it to
+        -- decide what gets written.
+        saved = def.saved == true
     }
 
     Core.points[id] = point
@@ -111,6 +122,105 @@ function Core.removePoint(id)
     Core.points[id] = nil
     invalidate()
     return true
+end
+
+-- ---------------------------------------------------------------------------
+-- Renames.
+--
+-- An admin's label for a point is an override, not an edit of the registered
+-- point. Registration runs again on every boot, from code that says what the
+-- label is, so an edit would last until the next restart. The override is
+-- read at registration instead, which also means a point that registers late,
+-- or a phone registered out of its own records, comes up with its new name
+-- without anybody sequencing anything.
+--
+-- Kept in the store file (Core.saved.labels) rather than global ModData, so a
+-- rename survives a wipe along with the points an admin added. This changes
+-- the table and nothing else: writing the file is the caller's job, see
+-- server/store.lua.
+--
+-- Only the label. The id is what every account's unlock list persists, so it
+-- is never editable, and that is the whole reason the two are separate.
+--
+-- Server side in effect: the file is loaded only there. A client never needs
+-- the override, because everything it draws comes out of a payload the
+-- server built from the renamed point.
+-- ---------------------------------------------------------------------------
+
+local function labelStore()
+    Core.saved.labels = Core.saved.labels or {}
+    return Core.saved.labels
+end
+
+--- The admin's label for a point, or nil when it has none.
+function Core.labelOverride(id)
+    return labelStore()[id]
+end
+
+--- Put every registered point's label back in line with the overrides, after
+--- the file has been read again. A rename taken out of the file goes back to
+--- the registered label.
+function Core.reapplyLabels()
+    for id, point in pairs(Core.points) do
+        point.label = Core.labelOverride(id) or point.shippedLabel
+    end
+    invalidate()
+end
+
+--- Rename a point.
+--
+-- Trimmed, and refused when longer than consts.labelMax. An empty label, or
+-- one identical to the registered label, REMOVES the override rather than
+-- storing it: an override that says what the registration already says does
+-- nothing, reads as customised when it is stock, and would stop a later
+-- version's better label from ever reaching this save.
+--
+-- Returns the point, or nil and a translation key saying why not.
+function Core.renamePoint(id, label)
+    local point = Core.points[id]
+    if not point then
+        return nil, "IGUI_PhunSpawn_NoSuchPoint"
+    end
+    if label ~= nil and type(label) ~= "string" then
+        return nil, "IGUI_PhunSpawn_BadLabel"
+    end
+    label = label and label:gsub("^%s+", ""):gsub("%s+$", "") or ""
+    if #label > Core.consts.labelMax then
+        return nil, "IGUI_PhunSpawn_LabelTooLong"
+    end
+
+    local store = labelStore()
+    if label == "" or label == point.shippedLabel then
+        store[id] = nil
+        point.label = point.shippedLabel
+    else
+        store[id] = label
+        point.label = label
+    end
+    -- The sort reads the label, and the indexes are what a reader rebuilds.
+    invalidate()
+    return point
+end
+
+--- Every point, WITH coordinates, for the admin editor. Never for a player:
+--- this is exactly what Unlocks.payloadFor exists to withhold.
+function Core.adminPayload()
+    local out = {}
+    for _, point in ipairs(Core.sortedPoints()) do
+        table.insert(out, {
+            id = point.id,
+            label = point.label,
+            shippedLabel = point.shippedLabel,
+            renamed = point.label ~= point.shippedLabel,
+            region = point.region,
+            discovery = point.discovery,
+            saved = point.saved,
+            x = point.x,
+            y = point.y,
+            z = point.z
+        })
+    end
+    return out
 end
 
 --- Rebuild the reverse indexes. Called by every reader, never by a writer.
@@ -237,11 +347,16 @@ end
 -- Squared distance throughout, so nothing needs a square root to answer
 -- "is anything within the discovery radius". The caller compares against
 -- radius * radius.
-function Core.nearestPoint(x, y, z)
+--
+-- `discovery`, when given, considers only points of that kind. The discovery
+-- sweep needs it: without it a pay phone standing nearer than an explore point
+-- would be "the nearest", fail the explore test, and hide the explore point
+-- behind it for as long as the player stood there.
+function Core.nearestPoint(x, y, z, discovery)
     Core.buildIndexes()
     local best, bestDistance
     for _, point in pairs(Core.points) do
-        if (point.z or 0) == (z or 0) then
+        if (point.z or 0) == (z or 0) and (not discovery or point.discovery == discovery) then
             local dx, dy = point.x - x, point.y - y
             local distance = (dx * dx) + (dy * dy)
             if not bestDistance or distance < bestDistance then
